@@ -1,4 +1,4 @@
-package com.eggprompt.backend;
+package com.eggprompt.backend.health;
 
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
