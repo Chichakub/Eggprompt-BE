@@ -40,7 +40,11 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(e -> e.authenticationEntryPoint(
-                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)));
+                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                        // Set the status directly: sendError dispatches to /error, which
+                        // may otherwise replace an authenticated 403 with a second 401.
+                        .accessDeniedHandler((request, response, denied) ->
+                                response.setStatus(HttpStatus.FORBIDDEN.value())));
         return http.build();
     }
 }
