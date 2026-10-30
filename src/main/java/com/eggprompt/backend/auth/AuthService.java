@@ -145,4 +145,11 @@ public class AuthService {
     private static ApiException invalidCredentials() {
         return new ApiException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
     }
+
+    public UserProfileResponse getProfile(String username) {
+        User user = userRepository.findByUsernameAndDeletedAtIsNull(username)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User not found"));
+        return new UserProfileResponse(
+                user.getUserId(), user.getUsername(), user.getUserRole(), user.getFarmId());
+    }
 }
