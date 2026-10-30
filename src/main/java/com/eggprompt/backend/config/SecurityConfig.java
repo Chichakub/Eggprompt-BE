@@ -35,7 +35,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/v1/auth/login",
-                                "/v1/auth/register").permitAll()
+                                "/v1/auth/register","/v1/auth/forgot-password","/v1/auth/reset-password").permitAll()
                         .requestMatchers("/v1/auth/login").permitAll()
                         .requestMatchers("/v1/auth/me", "/v1/auth/logout").authenticated()
                         .requestMatchers("/v1/users/**", "/v1/audit-logs/**").hasAnyAuthority("Super Admin", "Farm Admin")

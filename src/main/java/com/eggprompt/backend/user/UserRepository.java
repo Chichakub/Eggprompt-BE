@@ -3,7 +3,8 @@ package com.eggprompt.backend.user;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Integer> {
@@ -19,4 +20,14 @@ public interface UserRepository extends JpaRepository<User, Integer> {
         WHERE LOWER(TRIM(u.email)) = LOWER(TRIM(:email))
         """)
     boolean existsByEmailNormalized(@Param("email") String email);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT u
+        FROM User u
+        WHERE u.userId = :userId
+          AND u.deletedAt IS NULL
+        """)
+    Optional<User> findByIdForUpdate(
+            @Param("userId") Integer userId
+    );
 }

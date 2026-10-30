@@ -28,6 +28,20 @@ public class AuthController {
         return authService.register(request);
     }
 
+    @PostMapping("/forgot-password")
+    public ForgotPasswordResponse forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request
+    ) {
+        return authService.forgotPassword(request);
+    }
+
+    @PostMapping("/reset-password")
+    public ResetPasswordResponse resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request
+    ) {
+        return authService.resetPassword(request);
+    }
+
     @PostMapping("/logout")
     @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     public void logout(@RequestHeader("Authorization") String authorization) {
