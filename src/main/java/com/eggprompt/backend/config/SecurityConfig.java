@@ -34,6 +34,8 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/v1/auth/login",
+                                "/v1/auth/register").permitAll()
                         .requestMatchers("/v1/auth/login").permitAll()
                         .requestMatchers("/v1/auth/me", "/v1/auth/logout").authenticated()
                         .requestMatchers("/v1/users/**", "/v1/audit-logs/**").hasAnyAuthority("Super Admin", "Farm Admin")
