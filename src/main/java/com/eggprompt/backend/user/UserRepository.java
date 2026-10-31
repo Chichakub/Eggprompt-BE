@@ -20,6 +20,20 @@ public interface UserRepository extends JpaRepository<User, Integer> {
         WHERE LOWER(TRIM(u.email)) = LOWER(TRIM(:email))
         """)
     boolean existsByEmailNormalized(@Param("email") String email);
+
+    // ใช้ตอนแก้โปรไฟล์: ตรวจซ้ำกับผู้ใช้คนอื่น
+    boolean existsByUsernameAndUserIdNot(String username, Integer userId);
+
+    @Query("""
+        SELECT COUNT(u) > 0
+        FROM User u
+        WHERE LOWER(TRIM(u.email)) = LOWER(TRIM(:email))
+          AND u.userId <> :userId
+        """)
+    boolean existsByEmailNormalizedAndUserIdNot(
+            @Param("email") String email,
+            @Param("userId") Integer userId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
         SELECT u
