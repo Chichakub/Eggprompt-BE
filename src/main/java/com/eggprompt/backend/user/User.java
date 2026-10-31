@@ -26,6 +26,18 @@ public class User {
     @Column(name = "email", length = 255)
     private String email;
 
+    @Column(name = "user_code")
+    private String userCode;
+
+    @Column(name = "full_name")
+    private String fullName;
+
+    @Column(name = "phone_number")
+    private String phoneNumber;
+
+    @Column(name = "position")
+    private String position;
+
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
