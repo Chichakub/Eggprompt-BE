@@ -21,9 +21,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
         """)
     boolean existsByEmailNormalized(@Param("email") String email);
 
-    // ใช้ตอนแก้โปรไฟล์: ตรวจซ้ำกับผู้ใช้คนอื่น
-    boolean existsByUsernameAndUserIdNot(String username, Integer userId);
-
+    // ใช้ตอนแก้โปรไฟล์: ตรวจอีเมลซ้ำกับผู้ใช้คนอื่น (ไม่นับตัวเอง)
     @Query("""
         SELECT COUNT(u) > 0
         FROM User u
