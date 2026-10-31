@@ -42,6 +42,17 @@ public class AuthController {
         return authService.resetPassword(request);
     }
 
+    @PostMapping("/change-password")
+    public ResetPasswordResponse changePassword(
+            Authentication authentication,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        return authService.changePassword(
+                authentication.getName(),
+                request
+        );
+    }
+
     @PostMapping("/logout")
     @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     public void logout(@RequestHeader("Authorization") String authorization) {

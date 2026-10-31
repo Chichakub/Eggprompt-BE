@@ -308,4 +308,96 @@ public class AuthService {
 
         return new ResetPasswordResponse("ตั้งรหัสผ่านใหม่สำเร็จ");
     }
+
+    @Transactional
+    public ResetPasswordResponse changePassword(
+            String username,
+            ChangePasswordRequest request
+    ) {
+        User account = userRepository
+                .findByUsernameAndDeletedAtIsNull(username)
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.NOT_FOUND,
+                        "ไม่พบบัญชีผู้ใช้"
+                ));
+
+        // ล็อกข้อมูลบัญชีระหว่างเปลี่ยนรหัสผ่าน
+        User user = userRepository
+                .findByIdForUpdate(account.getUserId())
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.NOT_FOUND,
+                        "ไม่พบบัญชีผู้ใช้"
+                ));
+
+        if (!user.isActive()) {
+            throw new ApiException(
+                    HttpStatus.FORBIDDEN,
+                    "บัญชีนี้ถูกปิดใช้งาน"
+            );
+        }
+
+        String currentPassword = request.currentPassword();
+        String password = request.password();
+
+        if (currentPassword.getBytes(StandardCharsets.UTF_8).length > 72
+                || !passwordEncoder.matches(
+                currentPassword,
+                user.getPasswordHash()
+        )) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "รหัสผ่านเดิมไม่ถูกต้อง"
+            );
+        }
+
+        boolean hasSpecialCharacter = password.chars().anyMatch(c ->
+                (c >= 33 && c <= 47)
+                        || (c >= 58 && c <= 64)
+                        || (c >= 91 && c <= 96)
+                        || (c >= 123 && c <= 126)
+        );
+
+        if (password.length() < 8
+                || !password.matches("(?s).*[A-Z].*")
+                || !password.matches("(?s).*[a-z].*")
+                || !password.matches("(?s).*[0-9].*")
+                || !hasSpecialCharacter) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "รหัสผ่านยังไม่ผ่านเงื่อนไขทั้งหมด"
+            );
+        }
+
+        if (password.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "รหัสผ่านใหม่ต้องมีความยาวไม่เกิน 72 bytes"
+            );
+        }
+
+        if (!password.equals(request.confirmPassword())) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "รหัสผ่านทั้งสองช่องไม่ตรงกัน"
+            );
+        }
+
+        if (passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "รหัสผ่านใหม่ต้องต่างจากรหัสผ่านเดิม"
+            );
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(password));
+        userRepository.saveAndFlush(user);
+
+        // ยกเลิกลิงก์รีเซ็ตรหัสผ่านที่ยังไม่ได้ใช้
+        passwordResetTokenRepository.invalidateUnusedTokensForUser(
+                user.getUserId(),
+                Instant.now()
+        );
+
+        return new ResetPasswordResponse("เปลี่ยนรหัสผ่านสำเร็จ");
+    }
 }
