@@ -5,10 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record EditProfileRequest(
-        @NotBlank(message = "กรุณากรอกชื่อผู้ใช้")
-        @Size(max = 100, message = "ชื่อผู้ใช้ต้องไม่เกิน 100 ตัวอักษร")
-        String username,
-
         @NotBlank(message = "กรุณากรอกชื่อ - สกุล")
         @Size(max = 255, message = "ชื่อ - สกุลต้องไม่เกิน 255 ตัวอักษร")
         String fullName,
@@ -20,9 +16,6 @@ public record EditProfileRequest(
 
         @NotBlank(message = "กรุณากรอกเบอร์โทรศัพท์")
         @Size(max = 20, message = "เบอร์โทรศัพท์ต้องไม่เกิน 20 ตัวอักษร")
-        String phoneNumber,
-
-        @Size(max = 255, message = "ตำแหน่งต้องไม่เกิน 255 ตัวอักษร")
-        String position
+        String phoneNumber
 ) {
 }
