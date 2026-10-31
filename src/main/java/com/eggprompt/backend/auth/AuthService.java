@@ -159,7 +159,10 @@ public class AuthService {
         User user = userRepository.findByUsernameAndDeletedAtIsNull(username)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "User not found"));
         return new UserProfileResponse(
-                user.getUserId(), user.getUsername(), user.getUserRole(), user.getFarmId());
+                user.getUserId(), user.getUsername(), user.getUserRole(), user.getFarmId(),
+                user.getUserCode(), user.getFullName(), user.getEmail(),
+                user.getPhoneNumber(), user.getPosition(),
+                user.isActive() ? "active" : "inactive");
     }
     @Transactional
     public ForgotPasswordResponse forgotPassword(
