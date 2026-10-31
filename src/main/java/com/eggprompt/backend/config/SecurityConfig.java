@@ -38,11 +38,13 @@ public class SecurityConfig {
                                 "/v1/auth/register","/v1/auth/forgot-password","/v1/auth/reset-password").permitAll()
                         .requestMatchers("/v1/auth/login").permitAll()
                         .requestMatchers("/v1/auth/me", "/v1/auth/logout").authenticated()
+                        // ผู้ใช้ทุก Role แก้โปรไฟล์ตัวเองได้ (ต้องอยู่ก่อน /v1/users/**)
+                        .requestMatchers("/v1/users/me").authenticated()
                         .requestMatchers("/v1/users/**", "/v1/audit-logs/**").hasAnyAuthority("Super Admin", "Farm Admin")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(e -> e.authenticationEntryPoint(
-                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
+                                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
                         // Set the status directly: sendError dispatches to /error, which
                         // may otherwise replace an authenticated 403 with a second 401.
                         .accessDeniedHandler((request, response, denied) ->
