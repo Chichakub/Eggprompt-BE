@@ -56,6 +56,8 @@ public class User {
     @Column(name = "deleted_at")
     private Instant deletedAt;
 
+    private Instant lastLoginAt;
+
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();

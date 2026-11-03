@@ -7,7 +7,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
 import java.util.Optional;
 
-public interface UserRepository extends JpaRepository<User, Integer> {
+public interface UserRepository extends JpaRepository<User, Integer>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<User> {
     Optional<User> findByUsernameAndDeletedAtIsNull(String username);
 
     // ตรวจชื่อผู้ใช้ซ้ำ รวมบัญชีที่ถูกลบแบบ Soft Delete

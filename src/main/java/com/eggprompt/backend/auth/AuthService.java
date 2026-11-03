@@ -140,6 +140,8 @@ public class AuthService {
             throw new ApiException(HttpStatus.FORBIDDEN, "Account is inactive");
         }
 
+        user.setLastLoginAt(Instant.now());
+        userRepository.save(user);
         String token = jwtService.generateToken(user);
 
         return new LoginResponse(
