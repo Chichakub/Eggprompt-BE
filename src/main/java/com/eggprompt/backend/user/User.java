@@ -41,6 +41,9 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    @Column(name = "must_change_password")
+    private Boolean mustChangePassword;
+
     @Column(name = "user_role", nullable = false)
     private String userRole;
 

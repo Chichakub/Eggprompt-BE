@@ -34,6 +34,7 @@ public class JwtService {
                 .claim("username", user.getUsername())
                 .claim("role", user.getUserRole())
                 .claim("farmId", user.getFarmId())
+                .claim("mustChangePassword", Boolean.TRUE.equals(user.getMustChangePassword()))
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(expirationSeconds)))
                 .signWith(key)

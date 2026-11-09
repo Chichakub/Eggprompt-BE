@@ -82,7 +82,14 @@ public class AdminUserService {
         catch (DataIntegrityViolationException e) { throw new ApiException(HttpStatus.CONFLICT, "บันทึกไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้ซ้ำหรือข้อมูลฟาร์ม"); }
     }
     public UserView create(String username, CreateUserRequest request) {
-        User actor = actor(username);
+        return create(username, request, false);
+    }
+    public UserView createForFarm(String username, CreateUserRequest request) {
+        return create(username, request, "Farm Admin".equals(request.role()));
+    }
+
+    private UserView create(String username, CreateUserRequest request, boolean mustChangePassword) {
+    User actor = actor(username);
         allowedRole(actor, request.role());
         String farmId = superAdmin(actor) ? request.farmId() : actor.getFarmId();
         if (farmId != null) farmId = farmId.trim();
@@ -99,6 +106,7 @@ public class AdminUserService {
         user.setUsername(request.username()); user.setUserRole(request.role());
         user.setFarmId("Super Admin".equals(request.role()) ? null : farmId);
         user.setPasswordHash(encoder.encode(password)); user.setActive(true);
+        user.setMustChangePassword(mustChangePassword);
         save(user);
         return UserView.from(user);
     }

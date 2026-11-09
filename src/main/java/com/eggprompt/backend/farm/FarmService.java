@@ -44,7 +44,7 @@ public class FarmService {
         }
 
         Farm farm = new Farm();
-        farm.setFarmId(UUID.randomUUID().toString());
+        farm.setFarmId(UUID.randomUUID().toString().replace("-", "").substring(0, 20));
         farm.setFarmName(request.farmName().trim());
         farm.setAddress(request.address().trim());
         farm.setFarmRegistrationNumber(request.farmRegistrationNumber().trim());
@@ -64,7 +64,7 @@ public class FarmService {
                         HttpStatus.BAD_REQUEST, "ไม่สามารถสร้างบัญชี Super Admin จากฟอร์มฟาร์ม");
             }
 
-            adminUsers.create(username, new CreateUserRequest(
+            adminUsers.createForFarm(username, new CreateUserRequest(
                     account.username(),
                     account.temporaryPassword(),
                     account.role(),

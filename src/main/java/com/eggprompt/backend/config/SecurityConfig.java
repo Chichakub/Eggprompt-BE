@@ -10,6 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 public class SecurityConfig {
@@ -42,6 +43,8 @@ public class SecurityConfig {
                         // ผู้ใช้ทุก Role แก้โปรไฟล์ตัวเองได้ (ต้องอยู่ก่อน /v1/users/**)
                         .requestMatchers("/v1/users/me").authenticated()
                         .requestMatchers("/v1/admin/users/**", "/api/admin/users/**", "/v1/users/**", "/v1/audit-logs/**").hasAnyAuthority("Super Admin", "Farm Admin")
+                        .requestMatchers(HttpMethod.POST, "/api/farms")
+                        .hasAnyAuthority("Super Admin", "Farm Admin")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(e -> e.authenticationEntryPoint(

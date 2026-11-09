@@ -1,4 +1,6 @@
 package com.eggprompt.backend.farm;
 
-public class FarmRepository {
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface FarmRepository extends JpaRepository<Farm, String> {
 }

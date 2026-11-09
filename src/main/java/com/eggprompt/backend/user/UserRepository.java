@@ -42,4 +42,13 @@ public interface UserRepository extends JpaRepository<User, Integer>, org.spring
     Optional<User> findByIdForUpdate(
             @Param("userId") Integer userId
     );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+    SELECT u
+    FROM User u
+    WHERE u.username = :username
+      AND u.deletedAt IS NULL
+    """)
+    Optional<User> findByUsernameForUpdate(@Param("username") String username);
 }

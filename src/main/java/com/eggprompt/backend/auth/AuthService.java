@@ -149,7 +149,7 @@ public class AuthService {
                 "Bearer",
                 jwtService.getExpirationSeconds(),
                 new LoginResponse.UserInfo(
-                        user.getUserId(), user.getUsername(), user.getUserRole(), user.getFarmId())
+                        user.getUserId(), user.getUsername(), user.getUserRole(), user.getFarmId(),Boolean.TRUE.equals(user.getMustChangePassword()))
         );
     }
 
@@ -392,6 +392,7 @@ public class AuthService {
         }
 
         user.setPasswordHash(passwordEncoder.encode(password));
+        user.setMustChangePassword(false); // เพิ่มบรรทัดนี้
         userRepository.saveAndFlush(user);
 
         // ยกเลิกลิงก์รีเซ็ตรหัสผ่านที่ยังไม่ได้ใช้

@@ -6,5 +6,5 @@ public record LoginResponse(
         long expiresIn,
         UserInfo user
 ) {
-    public record UserInfo(Integer userId, String username, String role, String farmId) {}
+    public record UserInfo(Integer userId, String username, String role, String farmId, boolean mustChangePassword) {}
 }

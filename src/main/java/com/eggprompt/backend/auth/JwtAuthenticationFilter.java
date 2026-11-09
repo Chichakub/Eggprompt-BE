@@ -42,6 +42,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 var user = users.findById(Integer.valueOf(claims.getSubject()))
                         .filter(u -> u.isActive() && u.getDeletedAt() == null && ROLES.contains(u.getUserRole()))
                         .orElseThrow(() -> new IllegalArgumentException("Unavailable user"));
+                boolean passwordChangeRequired = Boolean.TRUE.equals(user.getMustChangePassword());
+                boolean temporaryToken = Boolean.TRUE.equals(claims.get("mustChangePassword"));
+
+                if (temporaryToken && !passwordChangeRequired) {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    return;
+                }
+
+                if (passwordChangeRequired) {
+                    String path = request.getRequestURI();
+                    String authPath = request.getContextPath() + "/v1/auth/";
+                    boolean allowed = "POST".equals(request.getMethod())
+                            && (path.equals(authPath + "change-password")
+                            || path.equals(authPath + "logout"));
+
+                    if (!allowed) {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        return;
+                    }
+                }
                 var authentication = new UsernamePasswordAuthenticationToken(user.getUsername(), null,
                         List.of(new SimpleGrantedAuthority(user.getUserRole())));
                 SecurityContextHolder.getContext().setAuthentication(authentication);
