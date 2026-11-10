@@ -45,6 +45,12 @@ public class SecurityConfig {
                         .requestMatchers("/v1/admin/users/**", "/api/admin/users/**", "/v1/users/**", "/v1/audit-logs/**").hasAnyAuthority("Super Admin", "Farm Admin")
                         .requestMatchers(HttpMethod.POST, "/api/farms")
                         .hasAnyAuthority("Super Admin", "Farm Admin")
+                        .requestMatchers(HttpMethod.POST, "/v1/houses")
+                        .hasAnyAuthority("Super Admin", "Farm Admin")
+                        .requestMatchers(HttpMethod.PUT, "/v1/houses/**")
+                        .hasAnyAuthority("Super Admin", "Farm Admin")
+                        .requestMatchers(HttpMethod.DELETE, "/v1/houses/**")
+                        .hasAnyAuthority("Super Admin", "Farm Admin")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(e -> e.authenticationEntryPoint(
