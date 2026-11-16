@@ -8,6 +8,11 @@ import java.util.List;
 import java.util.Optional;
 
 public interface HouseRepository extends JpaRepository<House, Integer> {
+    long countByFarmIdAndDeletedAtIsNull(String farmId);
+    @org.springframework.data.jpa.repository.Query("select coalesce(sum(h.capacity), 0) from House h where h.deletedAt is null")
+    Long totalCapacity();
+    long countByDeletedAtIsNull();
+
 
     List<House> findByFarmIdAndDeletedAtIsNullOrderByHouseIdAsc(String farmId);
 

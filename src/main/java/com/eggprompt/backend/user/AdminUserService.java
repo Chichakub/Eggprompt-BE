@@ -41,10 +41,16 @@ public class AdminUserService {
     }
     @Transactional(readOnly = true)
     public UserPage list(String username, String search, String role, int page, int size) {
+        return list(username, search, role, page, size, null);
+    }
+    @Transactional(readOnly = true)
+    public UserPage list(String username, String search, String role, int page, int size, String farmId) {
         User actor = actor(username);
         if (page < 0 || size < 1 || size > 100 || search.length() > 100)
             throw new ApiException(HttpStatus.BAD_REQUEST, "ค่าการค้นหาหรือแบ่งหน้าไม่ถูกต้อง");
         Specification<User> base = scope(actor);
+        if (superAdmin(actor) && farmId != null && !farmId.isBlank())
+            base = base.and((root,q,cb) -> cb.equal(root.get("farmId"), farmId));
         Map<String, Long> counts = new LinkedHashMap<>();
         counts.put("all", users.count(base));
         for (String r : ROLES) counts.put(r, users.count(base.and((root,q,cb) -> cb.equal(root.get("userRole"), r))));

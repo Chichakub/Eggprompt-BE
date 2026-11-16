@@ -8,6 +8,11 @@ import org.springframework.data.jpa.repository.Lock;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Integer>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<User> {
+    long countByFarmIdAndDeletedAtIsNull(String farmId);
+    long countByDeletedAtIsNull();
+    long countByUserRoleAndDeletedAtIsNull(String role);
+    java.util.List<User> findByFarmIdAndUserRoleAndDeletedAtIsNullOrderByUserIdAsc(String farmId, String role);
+
     Optional<User> findByUsernameAndDeletedAtIsNull(String username);
 
     // ตรวจชื่อผู้ใช้ซ้ำ รวมบัญชีที่ถูกลบแบบ Soft Delete

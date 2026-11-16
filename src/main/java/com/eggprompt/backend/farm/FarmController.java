@@ -11,11 +11,16 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/farms")
+@RequestMapping({"/api/farms", "/v1/farms"})
 @RequiredArgsConstructor
 public class FarmController {
 
     private final FarmService farmService;
+    private final AdminFarmService adminFarmService;
+    @org.springframework.web.bind.annotation.GetMapping("/me")
+    public AdminFarmService.FarmView me(Authentication authentication) {
+        return adminFarmService.own(authentication.getName());
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

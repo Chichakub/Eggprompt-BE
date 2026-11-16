@@ -15,6 +15,15 @@ import java.time.LocalDate;
 @Setter
 public class Farm {
 
+    @Column(name = "is_active", nullable = false, columnDefinition = "boolean default true")
+    private boolean active = true;
+
+    @Column(name = "deleted_at")
+    private java.time.Instant deletedAt;
+
+    @Column(name = "email")
+    private String email;
+
     @Id
     @Column(name = "farm_id", length = 20)
     private String farmId;

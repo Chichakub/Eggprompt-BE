@@ -35,8 +35,9 @@ public class AdminUserController {
     public UserPage list(Authentication auth, @RequestParam(defaultValue = "") String search,
                          @RequestParam(defaultValue = "") String role,
                          @RequestParam(defaultValue = "0") int page,
-                         @RequestParam(defaultValue = "10") int size) {
-        return service.list(auth.getName(), search, role, page, size);
+                         @RequestParam(defaultValue = "10") int size,
+                         @RequestParam(required = false) String farmId) {
+        return service.list(auth.getName(), search, role, page, size, farmId);
     }
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

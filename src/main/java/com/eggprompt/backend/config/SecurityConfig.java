@@ -42,6 +42,7 @@ public class SecurityConfig {
                         .requestMatchers("/v1/auth/me", "/v1/auth/logout").authenticated()
                         // ผู้ใช้ทุก Role แก้โปรไฟล์ตัวเองได้ (ต้องอยู่ก่อน /v1/users/**)
                         .requestMatchers("/v1/users/me").authenticated()
+                        .requestMatchers("/v1/admin/farms/**", "/api/admin/farms/**", "/admin/farms/**").hasAuthority("Super Admin")
                         .requestMatchers("/v1/admin/users/**", "/api/admin/users/**", "/v1/users/**", "/v1/audit-logs/**").hasAnyAuthority("Super Admin", "Farm Admin")
                         .requestMatchers(HttpMethod.POST, "/api/farms")
                         .hasAnyAuthority("Super Admin", "Farm Admin")
