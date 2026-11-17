@@ -18,7 +18,7 @@ public record HouseRequest(
         @NotBlank(message = "กรุณากรอกชื่อโรงเรือน")
         @Size(max = 100, message = "ชื่อโรงเรือนต้องไม่เกิน 100 ตัวอักษร") String houseName,
 
-        @NotBlank(message = "กรุณาระบุประเภทโรงเรือน")
+        // ตอนสร้างใช้ระบบปิดเป็นค่าเริ่มต้น ตอนแก้ไขคงประเภทเดิมหากไม่ระบุ
         @Size(max = 100, message = "ประเภทโรงเรือนต้องไม่เกิน 100 ตัวอักษร") String houseType,
 
         @NotNull(message = "กรุณาระบุวันที่เปิดใช้งาน") LocalDate openingDate,

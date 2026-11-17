@@ -45,13 +45,7 @@ public class FarmService {
 
         Farm farm = new Farm();
         farm.setFarmId(UUID.randomUUID().toString().replace("-", "").substring(0, 20));
-        farm.setFarmName(request.farmName().trim());
-        farm.setAddress(request.address().trim());
-        farm.setFarmRegistrationNumber(request.farmRegistrationNumber().trim());
-        farm.setTaxId(request.taxId().trim());
-        farm.setOperationStartDate(request.operationStartDate());
-        farm.setOwnerName(request.ownerName().trim());
-        farm.setContactPhone(request.contactPhone().trim());
+        applyFarmDetails(farm, request);
         farms.saveAndFlush(farm);
 
         if (farmAdmin) {
@@ -73,4 +67,35 @@ public class FarmService {
 
         return farm.getFarmId();
     }
+    @Transactional
+    public String updateOwn(String username, CreateFarmRequest request) {
+        User actor = users.findByUsernameForUpdate(username)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "ไม่พบบัญชีผู้ใช้"));
+        if (!actor.isActive() || !"Farm Admin".equals(actor.getUserRole())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "ไม่มีสิทธิ์แก้ไขฟาร์มนี้");
+        }
+        if (actor.getFarmId() == null) {
+            throw new ApiException(HttpStatus.CONFLICT, "บัญชีนี้ยังไม่มีฟาร์ม");
+        }
+        if (!request.accounts().isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "กรุณาจัดการบัญชีในเมนูจัดการผู้ใช้");
+        }
+        Farm farm = farms.findById(actor.getFarmId())
+                .filter(value -> value.getDeletedAt() == null)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ไม่พบฟาร์ม"));
+        applyFarmDetails(farm, request);
+        farms.saveAndFlush(farm);
+        return farm.getFarmId();
+    }
+
+    private void applyFarmDetails(Farm farm, CreateFarmRequest request) {
+        farm.setFarmName(request.farmName().trim());
+        farm.setAddress(request.address().trim());
+        farm.setFarmRegistrationNumber(request.farmRegistrationNumber().trim());
+        farm.setTaxId(request.taxId().trim());
+        farm.setOperationStartDate(request.operationStartDate());
+        farm.setOwnerName(request.ownerName().trim());
+        farm.setContactPhone(request.contactPhone().trim());
+    }
+
 }

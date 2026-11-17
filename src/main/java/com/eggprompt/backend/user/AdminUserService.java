@@ -107,7 +107,7 @@ public class AdminUserService {
                 || !password.matches("(?s).*[A-Z].*") || !password.matches("(?s).*[a-z].*")
                 || !password.matches("(?s).*[0-9].*") || !password.matches("(?s).*[^A-Za-z0-9\\s].*"))
             throw new ApiException(HttpStatus.BAD_REQUEST, "รหัสผ่านต้องมีอย่างน้อย 8 ตัว พิมพ์ใหญ่ พิมพ์เล็ก ตัวเลข และอักขระพิเศษ");
-        if (users.existsByUsername(request.username())) throw new ApiException(HttpStatus.CONFLICT, "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว");
+        if (users.existsByUsername(request.username())) throw new DuplicateUsernameException(request.username());
         User user = new User();
         user.setUsername(request.username()); user.setUserRole(request.role());
         user.setFarmId("Super Admin".equals(request.role()) ? null : farmId);

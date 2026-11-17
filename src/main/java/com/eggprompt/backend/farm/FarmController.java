@@ -32,5 +32,13 @@ public class FarmController {
         return new FarmCreatedResponse(farmId);
     }
 
+    @org.springframework.web.bind.annotation.PutMapping("/me")
+    public FarmCreatedResponse updateOwn(
+            Authentication authentication,
+            @Valid @RequestBody CreateFarmRequest request
+    ) {
+        return new FarmCreatedResponse(farmService.updateOwn(authentication.getName(), request));
+    }
+
     public record FarmCreatedResponse(String farmId) {}
 }

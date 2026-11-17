@@ -1,5 +1,6 @@
 package com.eggprompt.backend.exception;
 
+import com.eggprompt.backend.user.DuplicateUsernameException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -12,6 +13,14 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     public record ErrorResponse(int status, String message, Instant timestamp) {}
+
+    public record DuplicateUsernameResponse(int status, String message, Instant timestamp, String username) {}
+
+    @ExceptionHandler(DuplicateUsernameException.class)
+    public ResponseEntity<DuplicateUsernameResponse> handleDuplicateUsername(DuplicateUsernameException ex) {
+        return ResponseEntity.status(ex.getStatus()).body(new DuplicateUsernameResponse(
+                ex.getStatus().value(), ex.getMessage(), Instant.now(), ex.getUsername()));
+    }
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ErrorResponse> handleApi(ApiException ex) {

@@ -66,6 +66,7 @@ public class HouseService {
 
         House house = new House();
         house.setFarmId(farmId);
+        house.setHouseType("ระบบปิด");
         apply(house, req);
         if (house.getStatus() == null) house.setStatus("ACTIVE");
         return HouseResponse.from(save(house));
@@ -132,7 +133,8 @@ public class HouseService {
 
     private void apply(House h, HouseRequest r) {
         h.setHouseName(r.houseName().trim());
-        h.setHouseType(r.houseType().trim());
+        String houseType = clean(r.houseType());
+        if (houseType != null) h.setHouseType(houseType);
         h.setOpeningDate(r.openingDate());
         h.setWidthM(r.widthM());
         h.setLengthM(r.lengthM());
