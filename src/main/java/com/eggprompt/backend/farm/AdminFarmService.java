@@ -66,6 +66,9 @@ public class AdminFarmService {
     public FarmView own(String username) {
         User actor = users.findByUsernameAndDeletedAtIsNull(username)
                 .filter(User::isActive).orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED,"ไม่พบบัญชีผู้ใช้"));
+        if (!"Farm Admin".equals(actor.getUserRole())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "ไม่มีสิทธิ์ดูข้อมูลฟาร์ม");
+        }
         if (actor.getFarmId() == null) throw new ApiException(HttpStatus.NOT_FOUND,"ยังไม่ได้ลงทะเบียนฟาร์ม");
         return view(farms.findById(actor.getFarmId()).filter(f -> f.getDeletedAt() == null)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND,"ไม่พบฟาร์มนี้")));

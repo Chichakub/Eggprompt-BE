@@ -88,6 +88,24 @@ public class FarmService {
         return farm.getFarmId();
     }
 
+    @Transactional
+    public String updateAsAdmin(String username, String farmId, CreateFarmRequest request) {
+        User actor = users.findByUsernameAndDeletedAtIsNull(username)
+                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "ไม่พบบัญชีผู้ใช้"));
+        if (!actor.isActive() || !"Super Admin".equals(actor.getUserRole())) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "ไม่มีสิทธิ์แก้ไขฟาร์มนี้");
+        }
+        if (!request.accounts().isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "กรุณาจัดการบัญชีในเมนูจัดการผู้ใช้");
+        }
+        Farm farm = farms.findById(farmId)
+                .filter(value -> value.getDeletedAt() == null)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ไม่พบฟาร์ม"));
+        applyFarmDetails(farm, request);
+        farms.saveAndFlush(farm);
+        return farm.getFarmId();
+    }
+
     private void applyFarmDetails(Farm farm, CreateFarmRequest request) {
         farm.setFarmName(request.farmName().trim());
         farm.setAddress(request.address().trim());

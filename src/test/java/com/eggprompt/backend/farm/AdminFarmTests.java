@@ -28,9 +28,12 @@ class AdminFarmTests {
     Farm farm;
     FarmRepository farms;
     @Configuration @EnableWebMvc @EnableWebSecurity
-    @Import({SecurityConfig.class,JwtAuthenticationFilter.class,AdminFarmController.class,AdminFarmService.class,GlobalExceptionHandler.class})
+    @Import({SecurityConfig.class,JwtAuthenticationFilter.class,AdminFarmController.class,FarmController.class,AdminFarmService.class,GlobalExceptionHandler.class})
     static class Config {
         @Bean UserRepository users() { return mock(UserRepository.class); }
+        @Bean FarmService farmService(FarmRepository farms, UserRepository users) {
+            return new FarmService(farms, users, mock(com.eggprompt.backend.user.AdminUserService.class));
+        }
         @Bean FarmRepository farms() { return mock(FarmRepository.class); }
         @Bean HouseRepository houses() { return mock(HouseRepository.class); }
         @Bean JwtService jwt() { return new JwtService("",3600); }
@@ -76,5 +79,76 @@ class AdminFarmTests {
         mvc.perform(get("/v1/admin/farms/missing").header("Authorization",token())).andExpect(status().isNotFound());
         farm.setDeletedAt(java.time.Instant.now());
         mvc.perform(get("/v1/admin/farms/F1").header("Authorization",token())).andExpect(status().isNotFound());
+    }
+
+    @Test void farmStaffCannotReadOwnFarmThroughService() {
+        actor.setUserRole("Farm Staff");
+        actor.setFarmId("F1");
+        var service = context.getBean(AdminFarmService.class);
+        var error = org.junit.jupiter.api.Assertions.assertThrows(
+                com.eggprompt.backend.exception.ApiException.class,
+                () -> service.own("super"));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                org.springframework.http.HttpStatus.FORBIDDEN, error.getStatus());
+    }
+
+    String updatePayload() {
+        return """
+                {
+                  "farmName": "Updated farm",
+                  "address": "Test address",
+                  "farmRegistrationNumber": "REG-1",
+                  "taxId": "1234567890123",
+                  "contactPhone": "0812345678",
+                  "operationStartDate": "2026-01-01",
+                  "ownerName": "Updated owner",
+                  "accounts": []
+                }
+                """;
+    }
+
+    @Test void farmStaffCannotReadOrUpdateFarmThroughHttp() throws Exception {
+        actor.setUserRole("Farm Staff");
+        actor.setFarmId("F1");
+        when(context.getBean(UserRepository.class).findByUsernameForUpdate("super"))
+                .thenReturn(Optional.of(actor));
+        mvc.perform(get("/v1/farms/me").header("Authorization", token()))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/v1/farms/me").header("Authorization", token())
+                .contentType("application/json").content(updatePayload()))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/v1/admin/farms/F1").header("Authorization", token())
+                .contentType("application/json").content(updatePayload()))
+                .andExpect(status().isForbidden());
+        verify(farms, never()).saveAndFlush(any());
+    }
+
+    @Test void farmAdminReadsAndUpdatesOnlyOwnFarm() throws Exception {
+        actor.setUserRole("Farm Admin");
+        actor.setFarmId("F1");
+        when(context.getBean(UserRepository.class).findByUsernameForUpdate("super"))
+                .thenReturn(Optional.of(actor));
+        mvc.perform(get("/v1/farms/me").header("Authorization", token()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.farmId").value("F1"));
+        mvc.perform(put("/v1/farms/me").header("Authorization", token())
+                .contentType("application/json").content(updatePayload()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.farmId").value("F1"));
+        Assertions.assertEquals("Updated farm", farm.getFarmName());
+        verify(farms).saveAndFlush(farm);
+        mvc.perform(put("/v1/admin/farms/F2").header("Authorization", token())
+                .contentType("application/json").content(updatePayload()))
+                .andExpect(status().isForbidden());
+        verify(farms, never()).findById("F2");
+    }
+
+    @Test void superAdminUpdatesSelectedFarmAndMissingFarmIsRejected() throws Exception {
+        mvc.perform(put("/v1/admin/farms/F1").header("Authorization", token())
+                .contentType("application/json").content(updatePayload()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.farmId").value("F1"));
+        Assertions.assertEquals("Updated owner", farm.getOwnerName());
+        verify(farms).saveAndFlush(farm);
+        mvc.perform(put("/v1/admin/farms/missing").header("Authorization", token())
+                .contentType("application/json").content(updatePayload()))
+                .andExpect(status().isNotFound());
     }
 }
