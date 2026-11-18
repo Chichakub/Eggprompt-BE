@@ -1,5 +1,7 @@
 package com.eggprompt.backend.flock;
 
+import com.eggprompt.backend.auth.JwtAuthenticationFilter;
+
 import com.eggprompt.backend.exception.ApiException;
 import com.eggprompt.backend.house.HouseRepository;
 import com.eggprompt.backend.user.UserRepository;
@@ -27,15 +29,17 @@ public class FlockController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
-    public Created create(Authentication auth, @Valid @RequestBody Request request) {
+    public Created create(Authentication auth, @Valid @RequestBody Request request,
+                          @RequestAttribute(name = JwtAuthenticationFilter.FARM_SCOPE, required = false) String farmScope) {
         var actor = users.findByUsernameAndDeletedAtIsNull(auth.getName())
                 .filter(user -> user.isActive())
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "ไม่พบบัญชีผู้ใช้"));
         var house = houses.findByHouseIdAndDeletedAtIsNull(request.houseId())
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ไม่พบโรงเรือน"));
 
-        if (!"Super Admin".equals(actor.getUserRole()) &&
-                (!"Farm Admin".equals(actor.getUserRole()) || !house.getFarmId().equals(actor.getFarmId()))) {
+        if ((farmScope != null && !farmScope.equals(house.getFarmId()))
+                || (!"Super Admin".equals(actor.getUserRole())
+                && (!"Farm Admin".equals(actor.getUserRole()) || !house.getFarmId().equals(actor.getFarmId())))) {
             throw new ApiException(HttpStatus.FORBIDDEN, "ไม่มีสิทธิ์เพิ่มฝูงไก่ในโรงเรือนนี้");
         }
 

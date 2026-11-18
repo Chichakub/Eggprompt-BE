@@ -1,5 +1,7 @@
 package com.eggprompt.backend.user;
 
+import com.eggprompt.backend.auth.JwtAuthenticationFilter;
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
@@ -36,19 +38,28 @@ public class AdminUserController {
                          @RequestParam(defaultValue = "") String role,
                          @RequestParam(defaultValue = "0") int page,
                          @RequestParam(defaultValue = "10") int size,
-                         @RequestParam(required = false) String farmId) {
-        return service.list(auth.getName(), search, role, page, size, farmId);
+                         @RequestParam(required = false) String farmId,
+                         @RequestAttribute(name = JwtAuthenticationFilter.FARM_SCOPE, required = false) String farmScope) {
+        return service.list(auth.getName(), search, role, page, size, farmScope == null ? farmId : farmScope);
     }
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public UserView create(Authentication auth, @Valid @RequestBody CreateUserRequest request) {
+    public UserView create(Authentication auth, @Valid @RequestBody CreateUserRequest request,
+                           @RequestAttribute(name = JwtAuthenticationFilter.FARM_SCOPE, required = false) String farmScope) {
+        if (farmScope != null) {
+            request = new CreateUserRequest(request.username(), request.password(), request.role(), farmScope);
+        }
         return service.create(auth.getName(), request);
     }
     @PutMapping("/{id}")
-    public UserView update(Authentication auth, @PathVariable Integer id, @Valid @RequestBody UpdateUserRequest request) {
-        return service.update(auth.getName(), id, request);
+    public UserView update(Authentication auth, @PathVariable Integer id, @Valid @RequestBody UpdateUserRequest request,
+                           @RequestAttribute(name = JwtAuthenticationFilter.FARM_SCOPE, required = false) String farmScope) {
+        return service.update(auth.getName(), id, request, farmScope);
     }
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(Authentication auth, @PathVariable Integer id) { service.delete(auth.getName(), id); }
+    public void delete(Authentication auth, @PathVariable Integer id,
+                       @RequestAttribute(name = JwtAuthenticationFilter.FARM_SCOPE, required = false) String farmScope) {
+        service.delete(auth.getName(), id, farmScope);
+    }
 }
