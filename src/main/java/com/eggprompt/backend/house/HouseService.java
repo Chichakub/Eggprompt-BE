@@ -43,15 +43,15 @@ public class HouseService {
     }
 
     @Transactional
-    public HouseResponse create(String username, HouseRequest req) {
+    public HouseResponse create(String username, HouseRequest req, String farmScope) {
         User actor = writer(username);
 
         String farmId;
         if (isSuperAdmin(actor)) {
-            if (req.farmId() == null || req.farmId().isBlank()) {
+            farmId = farmScope == null ? clean(req.farmId()) : farmScope;
+            if (farmId == null) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Super Admin ต้องระบุ farmId");
             }
-            farmId = req.farmId().trim();
         } else {
             farmId = actor.getFarmId();
             if (farmId == null) {
@@ -73,9 +73,9 @@ public class HouseService {
     }
 
     @Transactional
-    public HouseResponse update(String username, Integer id, HouseRequest req) {
+    public HouseResponse update(String username, Integer id, HouseRequest req, String farmScope) {
         User actor = writer(username);
-        House house = find(actor, id);
+        House house = find(actor, id, farmScope);
 
         String name = req.houseName().trim();
         if (houses.existsByFarmIdAndHouseNameAndDeletedAtIsNullAndHouseIdNot(
@@ -88,9 +88,9 @@ public class HouseService {
     }
 
     @Transactional
-    public void delete(String username, Integer id) {
+    public void delete(String username, Integer id, String farmScope) {
         User actor = writer(username);
-        House house = find(actor, id);
+        House house = find(actor, id, farmScope);
 
         if (houses.countActiveFlocks(id) > 0) {
             throw new ApiException(HttpStatus.CONFLICT,
@@ -122,10 +122,11 @@ public class HouseService {
         return SUPER_ADMIN.equals(u.getUserRole());
     }
 
-    private House find(User actor, Integer id) {
+    private House find(User actor, Integer id, String farmScope) {
         House house = houses.findByHouseIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ไม่พบโรงเรือน"));
-        if (!isSuperAdmin(actor) && !Objects.equals(actor.getFarmId(), house.getFarmId())) {
+        if ((!isSuperAdmin(actor) && !Objects.equals(actor.getFarmId(), house.getFarmId()))
+                || (farmScope != null && !farmScope.equals(house.getFarmId()))) {
             throw new ApiException(HttpStatus.NOT_FOUND, "ไม่พบโรงเรือน");
         }
         return house;
@@ -156,7 +157,7 @@ public class HouseService {
         try {
             return houses.saveAndFlush(house);
         } catch (DataIntegrityViolationException e) {
-            // กรณีชนกันตอนบันทึกพร้อมกัน หรือ farmId ที่ระบุไม่มีอยู่จริง
+            // ถ้าชนกันตอนบันทึกพร้อมกัน หรือ farmId ที่ระบุไม่มีอยู่จริง
             throw new ApiException(HttpStatus.CONFLICT, "ชื่อโรงเรือนซ้ำ หรือไม่พบฟาร์มที่ระบุ");
         }
     }

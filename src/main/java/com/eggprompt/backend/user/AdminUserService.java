@@ -75,9 +75,11 @@ public class AdminUserService {
         if (!superAdmin(actor) && !List.of("Farm Staff", "Finance Staff").contains(role))
             throw new ApiException(HttpStatus.FORBIDDEN, "Farm Admin จัดการได้เฉพาะ Farm Staff และ Finance Staff ในฟาร์มของตน");
     }
-    private User target(User actor, Integer id) {
+    private User target(User actor, Integer id, String farmScope) {
         User target = users.findByIdForUpdate(id).orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "ไม่พบผู้ใช้"));
         if (actor.getUserId().equals(id)) throw new ApiException(HttpStatus.BAD_REQUEST, "ไม่สามารถเปลี่ยนสิทธิ์ ระงับ หรือลบบัญชีของตนเองจากหน้านี้");
+        if (farmScope != null && !farmScope.equals(target.getFarmId()))
+            throw new ApiException(HttpStatus.FORBIDDEN, "ไม่มีสิทธิ์จัดการบัญชีนี้");
         if (!superAdmin(actor) && (actor.getFarmId() == null || !Objects.equals(actor.getFarmId(), target.getFarmId())
                 || !List.of("Farm Staff", "Finance Staff").contains(target.getUserRole())))
             throw new ApiException(HttpStatus.FORBIDDEN, "ไม่มีสิทธิ์จัดการบัญชีนี้");
@@ -117,8 +119,11 @@ public class AdminUserService {
         return UserView.from(user);
     }
     public UserView update(String username, Integer id, UpdateUserRequest request) {
+        return update(username, id, request, null);
+    }
+    public UserView update(String username, Integer id, UpdateUserRequest request, String farmScope) {
         User actor = actor(username);
-        User user = target(actor, id);
+        User user = target(actor, id, farmScope);
         allowedRole(actor, request.role());
         if (!"Super Admin".equals(request.role()) && user.getFarmId() == null)
             throw new ApiException(HttpStatus.BAD_REQUEST, "บัญชีนี้ยังไม่ได้ผูกกับฟาร์ม จึงเปลี่ยนเป็น Role นี้ไม่ได้");
@@ -129,7 +134,10 @@ public class AdminUserService {
         return UserView.from(user);
     }
     public void delete(String username, Integer id) {
-        User user = target(actor(username), id);
+        delete(username, id, null);
+    }
+    public void delete(String username, Integer id, String farmScope) {
+        User user = target(actor(username), id, farmScope);
         user.setDeletedAt(Instant.now()); user.setActive(false); save(user);
     }
 }
