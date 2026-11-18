@@ -12,6 +12,9 @@ import java.time.Instant;
 @Setter
 public class User {
 
+    @Column(name = "onboarding_required", nullable = false, columnDefinition = "boolean default false")
+    private boolean onboardingRequired;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")

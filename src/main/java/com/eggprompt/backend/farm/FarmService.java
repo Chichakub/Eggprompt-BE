@@ -49,6 +49,7 @@ public class FarmService {
         farms.saveAndFlush(farm);
 
         if (farmAdmin) {
+            actor.setOnboardingRequired(true);
             actor.setFarmId(farm.getFarmId());
         }
 

@@ -24,13 +24,7 @@ public class FarmSetupController {
             throw new ApiException(HttpStatus.FORBIDDEN, "ไม่มีสิทธิ์อ่านขั้นตอนตั้งค่าฟาร์ม");
         }
         if (user.getFarmId() == null) return new Setup(1, null);
-        boolean completed = Boolean.TRUE.equals(jdbc.queryForObject("""
-                SELECT EXISTS (
-                    SELECT 1 FROM public.farms
-                    WHERE farm_id = ? AND setup_completed_at IS NOT NULL
-                )
-                """, Boolean.class, user.getFarmId()));
-        if (completed) return new Setup(0, user.getFarmId());
+        if (!user.isOnboardingRequired()) return new Setup(0, user.getFarmId());
         boolean hasHouses = Boolean.TRUE.equals(jdbc.queryForObject("""
                 SELECT EXISTS (SELECT 1 FROM houses WHERE farm_id = ? AND deleted_at IS NULL)
                 """, Boolean.class, user.getFarmId()));
