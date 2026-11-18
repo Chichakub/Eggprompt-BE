@@ -22,7 +22,7 @@ class FlockDatabaseTests {
     @Test void crudAndSetupCompletionAgainstPostgres() {
         String key="qa"+UUID.randomUUID().toString().substring(0,8);
         Farm farm=new Farm();farm.setFarmId(key);farm.setFarmName(key);farm.setOwnerName("QA");farm.setTaxId("1234567890123");farm.setAddress("Test");farm.setOperationStartDate(LocalDate.now());farm.setContactPhone("0800000000");farms.saveAndFlush(farm);
-        House house=new House();house.setFarmId(key);house.setHouseName(key);house.setHouseType("CLOSED");house.setOpeningDate(LocalDate.now());house.setWidthM(BigDecimal.TEN);house.setLengthM(BigDecimal.TEN);house.setCapacity(500);houses.saveAndFlush(house);
+        House house=new House();house.setFarmId(key);house.setHouseName(key);house.setLastBuiltOrRenovatedDate(LocalDate.now());house.setWidthM(BigDecimal.TEN);house.setLengthM(BigDecimal.TEN);house.setCapacity(500);houses.saveAndFlush(house);
         User actor=new User();actor.setUsername(key);actor.setUserRole("Farm Admin");actor.setFarmId(key);actor.setActive(true);actor.setPasswordHash("test-only");actor.setOnboardingRequired(true);users.saveAndFlush(actor);
         int breed=jdbc.query("SELECT breed_id FROM breeds WHERE is_active AND deleted_at IS NULL AND (breed_code='HYL-BRN' OR lower(trim(breed_name))='hy-line brown') ORDER BY breed_id LIMIT 1",(r,i)->r.getInt(1)).stream().findFirst()
                 .orElseGet(()->jdbc.queryForObject("INSERT INTO breeds(breed_name,breed_code) VALUES('Hy-Line Brown','HYL-BRN') RETURNING breed_id",Integer.class));

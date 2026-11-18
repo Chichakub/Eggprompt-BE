@@ -100,6 +100,14 @@ public class FlockService {
             if(duplicate!=null && duplicate>0)throw new ApiException(HttpStatus.CONFLICT,"รหัสฝูงนี้ถูกใช้งานแล้ว");
         }
     }
+    public FlockView create(String username,Request req,String farmScope) {
+        actor(username,true);
+        var farms=jdbc.queryForList("SELECT farm_id FROM houses WHERE house_id=? AND deleted_at IS NULL",req.houseId());
+        if(farms.isEmpty())throw new ApiException(HttpStatus.NOT_FOUND,"ไม่พบโรงเรือน");
+        if(farmScope!=null && !Objects.equals(farmScope,farms.getFirst().get("farm_id")))
+            throw new ApiException(HttpStatus.FORBIDDEN,"ไม่มีสิทธิ์เพิ่มฝูงไก่ในโรงเรือนนี้");
+        return create(username,req);
+    }
     public FlockView create(String username,Request req) {
         User actor=actor(username,true);validate(actor,req,null);
         String code=req.flockCode()==null?"FLK-"+UUID.randomUUID():req.flockCode();

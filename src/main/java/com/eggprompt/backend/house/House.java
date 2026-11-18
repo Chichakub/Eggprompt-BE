@@ -32,12 +32,6 @@ public class House {
     @Column(name = "house_name", nullable = false, length = 100)
     private String houseName;
 
-    @Column(name = "house_type", nullable = false, length = 100)
-    private String houseType;
-
-    @Column(name = "opening_date", nullable = false)
-    private LocalDate openingDate;
-
     @Column(name = "width_m", nullable = false, precision = 8, scale = 2)
     private BigDecimal widthM;
 
@@ -49,21 +43,6 @@ public class House {
 
     @Column(name = "status", nullable = false, length = 20)
     private String status = "ACTIVE";
-
-    @Column(name = "ventilation_fan_count")
-    private Integer ventilationFanCount;
-
-    @Column(name = "water_system", length = 100)
-    private String waterSystem;
-
-    @Column(name = "feeding_system", length = 100)
-    private String feedingSystem;
-
-    @Column(name = "egg_collection_system", length = 100)
-    private String eggCollectionSystem;
-
-    @Column(name = "lighting_program", length = 100)
-    private String lightingProgram;
 
     @Column(name = "last_built_or_renovated_date")
     private LocalDate lastBuiltOrRenovatedDate;

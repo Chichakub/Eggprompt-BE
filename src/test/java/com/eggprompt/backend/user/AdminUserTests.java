@@ -101,4 +101,19 @@ class AdminUserTests {
                 .content("{\"username\":\"new.staff\",\"role\":\"Farm Staff\",\"password\":\"Strong123!\",\"farmId\":\"FARM-OTHER\"}")).andExpect(status().isCreated())
                 .andExpect(jsonPath("$.farmId").value("FARM-001"));
     }
+    @Test void farmHeaderCannotOverrideAssignedFarm() throws Exception {
+        actor.setUserRole("Farm Admin");
+        actor.setFarmId("FARM-001");
+        mvc.perform(get("/v1/admin/users").header("Authorization", token()).header("farm_id", "FARM-002"))
+                .andExpect(status().isForbidden());
+        verify(users, never()).findAll(any(Specification.class), any(Pageable.class));
+    }
+    @Test void superAdminCanManageUsersWithinSelectedFarm() throws Exception {
+        mvc.perform(delete("/v1/admin/users/2").header("Authorization", token()).header("farm_id", "FARM-002"))
+                .andExpect(status().isForbidden());
+        assertNull(target.getDeletedAt());
+        mvc.perform(delete("/v1/admin/users/2").header("Authorization", token()).header("farm_id", "FARM-001"))
+                .andExpect(status().isNoContent());
+        assertNotNull(target.getDeletedAt());
+    }
 }

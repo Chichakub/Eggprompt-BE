@@ -1,11 +1,12 @@
 package com.eggprompt.backend.flock;
 
+import com.eggprompt.backend.auth.JwtAuthenticationFilter;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -22,8 +23,10 @@ public class FlockController {
     @GetMapping("/breeds")
     public List<FlockService.Breed> breeds(Authentication auth) { return service.breeds(auth.getName()); }
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
-    public FlockService.FlockView create(Authentication auth, @Valid @RequestBody Request request) {
-        return service.create(auth.getName(),request);
+    public FlockService.FlockView create(Authentication auth, @Valid @RequestBody Request request,
+            @RequestAttribute(name = JwtAuthenticationFilter.FARM_SCOPE, required = false) String farmScope) {
+        return farmScope == null ? service.create(auth.getName(),request)
+                : service.create(auth.getName(),request,farmScope);
     }
     @PutMapping("/{id}")
     public FlockService.FlockView update(Authentication auth, @PathVariable int id, @Valid @RequestBody Request request) {

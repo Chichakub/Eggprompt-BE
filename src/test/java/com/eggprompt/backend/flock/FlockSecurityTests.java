@@ -32,6 +32,13 @@ class FlockSecurityTests {
         var request=new FlockController.Request("F70-01",2,1,java.time.LocalDate.now(),10,100,"Supplier",null,java.math.BigDecimal.TEN,java.math.BigDecimal.TEN,true);
         assertEquals(HttpStatus.FORBIDDEN,assertThrows(ApiException.class,()->service.create("tester",request)).getStatus());
     }
+    @Test void scopedCreateCannotUseHouseOutsideSelectedFarm() {
+        actor.setUserRole("Super Admin");
+        when(jdbc.queryForList(anyString(),eq(2))).thenReturn(List.of(Map.of("farm_id","F2")));
+        var request=new FlockController.Request("F70-01",2,1,java.time.LocalDate.now(),10,100,"Supplier",null,java.math.BigDecimal.TEN,java.math.BigDecimal.TEN,true);
+        assertEquals(HttpStatus.FORBIDDEN,assertThrows(ApiException.class,()->service.create("tester",request,"F1")).getStatus());
+        verify(jdbc,never()).queryForObject(anyString(),eq(Integer.class),any(Object[].class));
+    }
     @Test void financeAndInactiveAccountsCannotRead() {
         actor.setUserRole("Finance Staff");
         assertEquals(HttpStatus.FORBIDDEN,assertThrows(ApiException.class,()->service.list("tester",null)).getStatus());

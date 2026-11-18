@@ -41,6 +41,12 @@ class FlockRoleApiTests {
         verify(service).update(eq("staff"),eq(7),any());
         mvc.perform(delete("/v1/flocks/7").header("Authorization",token())).andExpect(status().isForbidden());verify(service,never()).delete(anyString(),anyInt());
     }
+    @Test void scopedCreatePassesAuthenticatedFarmToService() throws Exception {
+        mvc.perform(post("/v1/flocks").header("Authorization",token()).header("farm_id","F1")
+                .contentType("application/json").content(payload())).andExpect(status().isCreated());
+        verify(service).create(eq("staff"),any(),eq("F1"));
+        verify(service,never()).create(anyString(),any());
+    }
     @Test void financeCannotCreateAndAdminMayStillDelete() throws Exception {
         actor.setUserRole("Finance Staff");
         mvc.perform(post("/v1/flocks").header("Authorization",token()).contentType("application/json").content(payload())).andExpect(status().isForbidden());

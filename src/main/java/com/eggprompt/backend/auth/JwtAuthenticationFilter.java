@@ -19,6 +19,7 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    public static final String FARM_SCOPE = "authenticatedFarmScope";
     private final JwtService jwtService;
     private final UserRepository users;
     private final RevokedTokenStore revokedTokens;
@@ -61,6 +62,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                         return;
                     }
+                }
+                var farmHeaders = request.getHeaders("farm_id");
+                if (farmHeaders.hasMoreElements()) {
+                    String farmId = farmHeaders.nextElement().trim();
+                    if (farmId.isEmpty() || farmId.length() > 20 || farmId.contains(",")
+                            || farmHeaders.hasMoreElements()) {
+                        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                        return;
+                    }
+                    if (!"Super Admin".equals(user.getUserRole()) && !farmId.equals(user.getFarmId())) {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        return;
+                    }
+                    request.setAttribute(FARM_SCOPE, farmId);
                 }
                 var authentication = new UsernamePasswordAuthenticationToken(user.getUsername(), null,
                         List.of(new SimpleGrantedAuthority(user.getUserRole())));
