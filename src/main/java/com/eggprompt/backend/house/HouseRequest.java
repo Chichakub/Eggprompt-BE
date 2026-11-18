@@ -18,11 +18,6 @@ public record HouseRequest(
         @NotBlank(message = "กรุณากรอกชื่อโรงเรือน")
         @Size(max = 100, message = "ชื่อโรงเรือนต้องไม่เกิน 100 ตัวอักษร") String houseName,
 
-        // ตอนสร้างใช้ระบบปิดเป็นค่าเริ่มต้น ตอนแก้ไขคงประเภทเดิมหากไม่ระบุ
-        @Size(max = 100, message = "ประเภทโรงเรือนต้องไม่เกิน 100 ตัวอักษร") String houseType,
-
-        @NotNull(message = "กรุณาระบุวันที่เปิดใช้งาน") LocalDate openingDate,
-
         @NotNull(message = "กรุณาระบุความกว้าง")
         @DecimalMin(value = "0.0", inclusive = false, message = "ความกว้างต้องมากกว่า 0")
         @Digits(integer = 6, fraction = 2, message = "ความกว้างรูปแบบไม่ถูกต้อง") BigDecimal widthM,
@@ -34,13 +29,7 @@ public record HouseRequest(
         @NotNull(message = "กรุณาระบุความจุ")
         @Min(value = 1, message = "ความจุต้องมากกว่า 0") Integer capacity,
 
-        // ไม่ส่งมา = ACTIVE (ตอนสร้าง) / คงค่าเดิม (ตอนแก้ไข)
-        @Pattern(regexp = "ACTIVE|INACTIVE", message = "สถานะต้องเป็น ACTIVE หรือ INACTIVE") String status,
+        LocalDate lastBuiltOrRenovatedDate,
 
-        @Min(value = 0, message = "จำนวนพัดลมต้องไม่ติดลบ") Integer ventilationFanCount,
-        @Size(max = 100, message = "ระบบน้ำต้องไม่เกิน 100 ตัวอักษร") String waterSystem,
-        @Size(max = 100, message = "ระบบให้อาหารต้องไม่เกิน 100 ตัวอักษร") String feedingSystem,
-        @Size(max = 100, message = "การเก็บไข่ต้องไม่เกิน 100 ตัวอักษร") String eggCollectionSystem,
-        @Size(max = 100, message = "โปรแกรมแสงต้องไม่เกิน 100 ตัวอักษร") String lightingProgram,
-        LocalDate lastBuiltOrRenovatedDate
+        @Pattern(regexp = "ACTIVE|INACTIVE", message = "สถานะต้องเป็น ACTIVE หรือ INACTIVE") String status
 ) {}

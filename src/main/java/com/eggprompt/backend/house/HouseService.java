@@ -66,9 +66,7 @@ public class HouseService {
 
         House house = new House();
         house.setFarmId(farmId);
-        house.setHouseType("ระบบปิด");
         apply(house, req);
-        if (house.getStatus() == null) house.setStatus("ACTIVE");
         return HouseResponse.from(save(house));
     }
 
@@ -134,23 +132,19 @@ public class HouseService {
 
     private void apply(House h, HouseRequest r) {
         h.setHouseName(r.houseName().trim());
-        String houseType = clean(r.houseType());
-        if (houseType != null) h.setHouseType(houseType);
-        h.setOpeningDate(r.openingDate());
         h.setWidthM(r.widthM());
         h.setLengthM(r.lengthM());
         h.setCapacity(r.capacity());
         if (r.status() != null) h.setStatus(r.status());
-        h.setVentilationFanCount(r.ventilationFanCount());
-        h.setWaterSystem(clean(r.waterSystem()));
-        h.setFeedingSystem(clean(r.feedingSystem()));
-        h.setEggCollectionSystem(clean(r.eggCollectionSystem()));
-        h.setLightingProgram(clean(r.lightingProgram()));
         h.setLastBuiltOrRenovatedDate(r.lastBuiltOrRenovatedDate());
     }
 
     private String clean(String s) {
         return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
+    private ApiException duplicateName() {
+        return new ApiException(HttpStatus.CONFLICT, "ชื่อโรงเรือนนี้มีอยู่แล้วในฟาร์ม");
     }
 
     private House save(House house) {
@@ -160,9 +154,5 @@ public class HouseService {
             // ถ้าชนกันตอนบันทึกพร้อมกัน หรือ farmId ที่ระบุไม่มีอยู่จริง
             throw new ApiException(HttpStatus.CONFLICT, "ชื่อโรงเรือนซ้ำ หรือไม่พบฟาร์มที่ระบุ");
         }
-    }
-
-    private ApiException duplicateName() {
-        return new ApiException(HttpStatus.CONFLICT, "ชื่อโรงเรือนนี้มีอยู่แล้วในฟาร์ม");
     }
 }
