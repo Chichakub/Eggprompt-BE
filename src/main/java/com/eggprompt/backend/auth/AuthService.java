@@ -82,6 +82,7 @@ public class AuthService {
 
         // Backend กำหนด Role เอง
         user.setUserRole("Farm Admin");
+        user.setOnboardingRequired(true);
         user.setActive(true);
 
         // ยังไม่ได้ตั้งค่าฟาร์ม
