@@ -54,6 +54,8 @@ public class SecurityConfig {
                         .hasAnyAuthority("Super Admin", "Farm Admin")
                         .requestMatchers(HttpMethod.POST, "/v1/flocks", "/api/flocks", "/flocks")
                         .hasAnyAuthority("Super Admin", "Farm Admin", "Farm Staff")
+                        .requestMatchers(HttpMethod.POST, "/api/health-logs", "/health-logs")
+                        .hasAnyAuthority("Super Admin", "Farm Admin", "Farm Staff")
                         .requestMatchers(HttpMethod.PUT, "/v1/flocks/**", "/api/flocks/**", "/flocks/**")
                         .hasAnyAuthority("Super Admin", "Farm Admin", "Farm Staff")
                         .requestMatchers(HttpMethod.GET, "/v1/flocks/**", "/api/flocks/**", "/flocks/**")
