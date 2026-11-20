@@ -38,9 +38,9 @@ public class FlockService {
     private static final String SELECT = """
             SELECT f.*,h.house_name,h.farm_id,b.breed_name,
             (SELECT COALESCE(sum(dead_count),0) FROM daily_health_logs d WHERE d.flock_id=f.flock_id AND d.deleted_at IS NULL) AS total_dead,
-            (SELECT e.total_egg_count*100.0/NULLIF(d.live_hen_count,0) FROM daily_egg_logs e
+            (SELECT SUM(e.total_egg_count)*100.0/NULLIF(MAX(d.live_hen_count),0) FROM daily_egg_logs e
               JOIN daily_health_logs d ON d.flock_id=e.flock_id AND d.record_date=e.record_date AND d.deleted_at IS NULL
-              WHERE e.flock_id=f.flock_id AND e.deleted_at IS NULL ORDER BY e.record_date DESC LIMIT 1) AS hen_day,
+              WHERE e.flock_id=f.flock_id AND e.deleted_at IS NULL GROUP BY e.record_date ORDER BY e.record_date DESC LIMIT 1) AS hen_day,
             (SELECT feed.feed_weight_kg*1000.0/NULLIF(d.live_hen_count,0) FROM daily_feed_logs feed
               JOIN daily_health_logs d ON d.flock_id=feed.flock_id AND d.record_date=feed.record_date AND d.deleted_at IS NULL
               WHERE feed.flock_id=f.flock_id AND feed.deleted_at IS NULL ORDER BY feed.record_date DESC LIMIT 1) AS feed_per_bird
@@ -127,7 +127,9 @@ public class FlockService {
         } catch(DataIntegrityViolationException e) { throw new ApiException(HttpStatus.CONFLICT,"รหัสฝูงหรือโรงเรือนนี้ถูกใช้งานแล้ว กรุณาตรวจสอบข้อมูล"); }
     }
     public FlockView update(String username,int id,Request req) {
-        User actor=actor(username,true);FlockView previous=find(actor,id);
+        User actor=actor(username,true);
+        if("Farm Staff".equals(actor.getUserRole()))throw new ApiException(HttpStatus.FORBIDDEN,"ไม่มีสิทธิ์แก้ไขข้อมูลฝูงไก่");
+        FlockView previous=find(actor,id);
         validate(actor,req,id);
         var removed=jdbc.queryForObject("SELECT COALESCE(sum(dead_count+cull_count),0) FROM daily_health_logs WHERE flock_id=? AND deleted_at IS NULL",Long.class,id);
         long losses=Math.max(Math.max(0,previous.initialCount()-previous.currentCount()), removed==null?0:removed);
