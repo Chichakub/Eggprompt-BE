@@ -34,11 +34,11 @@ class FlockRoleApiTests {
     @AfterEach void close(){context.close();}
     String token(){return "Bearer "+context.getBean(JwtService.class).generateToken(actor);}
     String payload(){return "{\"flockCode\":\"F70-01\",\"houseId\":1,\"breedId\":1,\"receivedDate\":\"2026-01-01\",\"initialAgeWeeks\":10,\"initialCount\":100,\"supplier\":\"Supplier\",\"pricePerBird\":100,\"initialAverageWeightG\":1000,\"vaccinated\":true}";}
-    @Test void staffMayCreateAndUpdateButDeleteIsForbidden() throws Exception {
+    @Test void staffMayCreateButUpdateAndDeleteAreForbidden() throws Exception {
         mvc.perform(post("/v1/flocks").header("Authorization",token()).contentType("application/json").content(payload())).andExpect(status().isCreated());
         verify(service).create(eq("staff"),any());
-        mvc.perform(put("/v1/flocks/7").header("Authorization",token()).contentType("application/json").content(payload())).andExpect(status().isOk());
-        verify(service).update(eq("staff"),eq(7),any());
+        mvc.perform(put("/v1/flocks/7").header("Authorization",token()).contentType("application/json").content(payload())).andExpect(status().isForbidden());
+        verify(service,never()).update(anyString(),anyInt(),any());
         mvc.perform(delete("/v1/flocks/7").header("Authorization",token())).andExpect(status().isForbidden());verify(service,never()).delete(anyString(),anyInt());
     }
     @Test void scopedCreatePassesAuthenticatedFarmToService() throws Exception {
@@ -51,6 +51,8 @@ class FlockRoleApiTests {
         actor.setUserRole("Finance Staff");
         mvc.perform(post("/v1/flocks").header("Authorization",token()).contentType("application/json").content(payload())).andExpect(status().isForbidden());
         actor.setUserRole("Farm Admin");
+        mvc.perform(put("/v1/flocks/7").header("Authorization",token()).contentType("application/json").content(payload())).andExpect(status().isOk());
+        verify(service).update(eq("staff"),eq(7),any());
         mvc.perform(delete("/v1/flocks/7").header("Authorization",token())).andExpect(status().isNoContent());
     }
 }

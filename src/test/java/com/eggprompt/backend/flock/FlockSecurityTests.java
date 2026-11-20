@@ -21,6 +21,11 @@ class FlockSecurityTests {
         actor=new User();actor.setUserId(1);actor.setUsername("tester");actor.setUserRole("Farm Admin");actor.setFarmId("F1");actor.setActive(true);
         when(users.findByUsernameAndDeletedAtIsNull("tester")).thenReturn(Optional.of(actor));
     }
+    @Test void staffCannotUpdate() {
+        actor.setUserRole("Farm Staff");
+        assertEquals(HttpStatus.FORBIDDEN,assertThrows(ApiException.class,()->service.update("tester",7,null)).getStatus());
+        verifyNoInteractions(jdbc);
+    }
     @Test void staffCannotDelete() {
         actor.setUserRole("Farm Staff");
         assertEquals(HttpStatus.FORBIDDEN,assertThrows(ApiException.class,()->service.delete("tester",7)).getStatus());
