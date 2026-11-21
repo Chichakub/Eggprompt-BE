@@ -42,9 +42,17 @@ public class FlockService {
             (SELECT SUM(e.total_egg_count)*100.0/NULLIF(MAX(d.live_hen_count),0) FROM daily_egg_logs e
               JOIN daily_health_logs d ON d.flock_id=e.flock_id AND d.record_date=e.record_date AND d.deleted_at IS NULL
               WHERE e.flock_id=f.flock_id AND e.deleted_at IS NULL GROUP BY e.record_date ORDER BY e.record_date DESC LIMIT 1) AS hen_day,
-            (SELECT feed.feed_weight_kg*1000.0/NULLIF(d.live_hen_count,0) FROM daily_feed_logs feed
-              JOIN daily_health_logs d ON d.flock_id=feed.flock_id AND d.record_date=feed.record_date AND d.deleted_at IS NULL
-              WHERE feed.flock_id=f.flock_id AND feed.deleted_at IS NULL ORDER BY feed.record_date DESC LIMIT 1) AS feed_per_bird
+                        (SELECT SUM(feed.feed_weight_kg) * 1000.0 / NULLIF(d.live_hen_count, 0)
+                         FROM daily_feed_logs feed
+                         JOIN daily_health_logs d
+                           ON d.flock_id = feed.flock_id
+                          AND d.record_date = feed.record_date
+                          AND d.deleted_at IS NULL
+                         WHERE feed.flock_id = f.flock_id
+                           AND feed.deleted_at IS NULL
+                         GROUP BY feed.record_date, d.live_hen_count
+                         ORDER BY feed.record_date DESC
+                         LIMIT 1) AS feed_per_bird
             FROM flocks f
             JOIN houses h ON h.house_id=f.house_id JOIN breeds b ON b.breed_id=f.breed_id
             WHERE f.deleted_at IS NULL AND h.deleted_at IS NULL
