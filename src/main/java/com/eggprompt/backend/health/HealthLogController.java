@@ -12,12 +12,19 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping({"/api/health-logs", "/health-logs"})
 @RequiredArgsConstructor
 public class HealthLogController {
     private final HealthLogService service;
+
+    @GetMapping("/loss-history")
+    public List<HealthLogService.LossHistory> lossHistory(Authentication authentication,
+            @RequestAttribute(name = JwtAuthenticationFilter.FARM_SCOPE, required = false) String farmScope) {
+        return service.lossHistory(authentication.getName(), farmScope);
+    }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

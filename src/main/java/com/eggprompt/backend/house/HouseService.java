@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 
@@ -131,12 +133,17 @@ public class HouseService {
     }
 
     private void apply(House h, HouseRequest r) {
+        LocalDate renovationDate = r.lastBuiltOrRenovatedDate();
+        if (renovationDate != null && renovationDate.isAfter(LocalDate.now(ZoneId.of("Asia/Bangkok")))) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "วันที่สร้างหรือปรับปรุงล่าสุดต้องไม่เกินวันนี้");
+        }
+
         h.setHouseName(r.houseName().trim());
         h.setWidthM(r.widthM());
         h.setLengthM(r.lengthM());
         h.setCapacity(r.capacity());
         if (r.status() != null) h.setStatus(r.status());
-        h.setLastBuiltOrRenovatedDate(r.lastBuiltOrRenovatedDate());
+        h.setLastBuiltOrRenovatedDate(renovationDate);
     }
 
     private String clean(String s) {

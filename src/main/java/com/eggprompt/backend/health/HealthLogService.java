@@ -9,11 +9,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -26,36 +28,97 @@ public class HealthLogService {
     private final JsonMapper json;
 
     public record Result(long healthLogId, int flockId, LocalDate recordDate, int liveHenCount,
-                         int deadCount, int cullCount, int sickCount) {}
+                         int deadCount, int cullCount, int sickCount, int currentCount) {}
+    public record LossHistory(String id, LocalDate recordDate, String recordedAt, String houseName, String flockCode,
+                              int deadCount, int cullCount, String deathCause, String cullCause, String remark) {}
 
-    private record Flock(String farmId, LocalDate receivedDate, int initialCount) {}
+    private record LossDay(long id, LocalDate date, String houseName, String flockCode,
+                           int deadCount, int cullCount, String remark) {}
+
+    private record Flock(String farmId, LocalDate receivedDate, int initialCount, int currentCount) {}
     private record DailyLog(long id, int deadCount, int cullCount, String symptomNote, String remark) {}
     private record Symptoms(String recordedAt, int sickCount, String symptomNote) {}
     private record EventDetails(String recordedAt, int recordedByUserId, int liveHenCount,
                                 int deadCount, int cullCount, String deathCause, String cullCause,
                                 String treatmentNote, String remark) {}
 
-    @Transactional
-    public Result create(String username, HealthLogController.Request request, String farmScope) {
+    private User actor(String username) {
         User actor = users.findByUsernameAndDeletedAtIsNull(username).filter(User::isActive)
                 .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "ไม่พบบัญชีผู้ใช้"));
         String role = actor.getUserRole();
         if (!List.of("Super Admin", "Farm Admin", "Farm Staff").contains(role)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "ไม่มีสิทธิ์บันทึกข้อมูลสุขภาพไก่");
+            throw new ApiException(HttpStatus.FORBIDDEN, "ไม่มีสิทธิ์เข้าถึงข้อมูลสุขภาพไก่");
         }
+        return actor;
+    }
 
-        String allowedFarm = "Super Admin".equals(role) ? farmScope : actor.getFarmId();
-        if (!"Super Admin".equals(role) && allowedFarm == null) {
+    @Transactional(readOnly = true)
+    public List<LossHistory> lossHistory(String username, String farmScope) {
+        User actor = actor(username);
+        String farmId = "Super Admin".equals(actor.getUserRole()) ? farmScope : actor.getFarmId();
+        if (!StringUtils.hasText(farmId)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "กรุณาเลือกฟาร์มก่อนดูประวัติสุขภาพ");
+        }
+        var days = jdbc.query("""
+                SELECT d.health_log_id, d.record_date, h.house_name, f.flock_code, d.dead_count, d.cull_count, d.remark
+                FROM daily_health_logs d JOIN flocks f ON f.flock_id = d.flock_id
+                JOIN houses h ON h.house_id = f.house_id
+                WHERE h.farm_id = ? AND d.deleted_at IS NULL AND (d.dead_count > 0 OR d.cull_count > 0)
+                ORDER BY d.record_date DESC, d.health_log_id DESC
+                LIMIT 100
+                """, (row, index) -> new LossDay(row.getLong("health_log_id"),
+                row.getObject("record_date", LocalDate.class), row.getString("house_name"), row.getString("flock_code"),
+                row.getInt("dead_count"), row.getInt("cull_count"), row.getString("remark")), farmId);
+        return days.stream().flatMap(day -> lossEntries(day).stream()).toList();
+    }
+
+    private List<LossHistory> lossEntries(LossDay day) {
+        var history = new ArrayList<LossHistory>();
+        int remainingDead = day.deadCount();
+        int remainingCulled = day.cullCount();
+        String[] lines = day.remark() == null ? new String[0] : day.remark().split("\n");
+        for (int index = lines.length - 1; index >= 0; index--) {
+            String line = lines[index].strip();
+            if (!line.startsWith("{")) continue;
+            try {
+                var event = json.readTree(line);
+                int dead = event.path("deadCount").asInt(0);
+                int culled = event.path("cullCount").asInt(0);
+                if (dead < 0 || culled < 0 || dead > remainingDead || culled > remainingCulled
+                        || (dead == 0 && culled == 0)) continue;
+                history.add(new LossHistory(day.id() + "-" + index, day.date(), event.path("recordedAt").asText(null),
+                        day.houseName(), day.flockCode(), dead, culled, event.path("deathCause").asText(null),
+                        event.path("cullCause").asText(null), event.path("remark").asText(null)));
+                remainingDead -= dead;
+                remainingCulled -= culled;
+            } catch (JacksonException ignored) {
+                // Plain-text or malformed legacy notes still contribute to the daily totals below.
+            }
+        }
+        if (remainingDead > 0 || remainingCulled > 0) {
+            history.add(new LossHistory(day.id() + "-daily", day.date(), null, day.houseName(), day.flockCode(),
+                    remainingDead, remainingCulled, null, null, null));
+        }
+        return history;
+    }
+
+    @Transactional
+    public Result create(String username, HealthLogController.Request request, String farmScope) {
+        User actor = actor(username);
+        boolean superAdmin = "Super Admin".equals(actor.getUserRole());
+        String allowedFarm = superAdmin ? farmScope : actor.getFarmId();
+        if (!superAdmin && allowedFarm == null) {
             throw new ApiException(HttpStatus.FORBIDDEN, "บัญชีนี้ไม่มีฟาร์มที่รับผิดชอบ");
         }
 
         var rows = jdbc.query("""
-                SELECT h.farm_id, f.received_date, f.initial_count
+                SELECT h.farm_id, f.received_date, f.initial_count, f.current_count
                 FROM flocks f JOIN houses h ON h.house_id = f.house_id
                 WHERE f.flock_id = ? AND f.deleted_at IS NULL AND h.deleted_at IS NULL
                 FOR UPDATE OF f
                 """, (row, index) -> new Flock(row.getString("farm_id"),
-                row.getObject("received_date", LocalDate.class), row.getInt("initial_count")), request.flockId());
+                row.getObject("received_date", LocalDate.class), row.getInt("initial_count"),
+                row.getInt("current_count")), request.flockId());
         if (rows.isEmpty()) {
             throw new ApiException(HttpStatus.NOT_FOUND, "ไม่พบฝูงไก่");
         }
@@ -80,6 +143,13 @@ public class HealthLogService {
         if (request.liveHenCount() + deadCount + cullCount > flock.initialCount()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "จำนวนไก่มีชีวิตรวมกับยอดตายและคัดทิ้งของวันเกินจำนวนรับเข้าฝูง");
         }
+        int available = availableCount(request.flockId(), flock.initialCount(), flock.currentCount());
+        long eventLosses = (long) request.deadCount() + request.cullCount();
+        if (eventLosses > available) {
+            throw new ApiException(HttpStatus.CONFLICT, "จำนวนตายและคัดทิ้งเกินจำนวนไก่คงเหลือของฝูง");
+        }
+        int currentCount = (int) (available - eventLosses);
+
         String recordedAt = Instant.now().toString();
         var symptoms = new Symptoms(recordedAt, request.sickCount(), clean(request.symptomNote()));
         var details = new EventDetails(recordedAt, actor.getUserId(), request.liveHenCount(),
@@ -88,6 +158,7 @@ public class HealthLogService {
         String symptomNote = symptoms.sickCount() > 0 || symptoms.symptomNote() != null
                 ? json.writeValueAsString(symptoms) : null;
         String remark = json.writeValueAsString(details);
+        long logId;
         if (dailyLog != null) {
             jdbc.update("""
                     UPDATE daily_health_logs
@@ -97,18 +168,32 @@ public class HealthLogService {
                     """, request.liveHenCount(), (int) deadCount, (int) cullCount,
                     appendNote(dailyLog.symptomNote(), symptomNote), appendNote(dailyLog.remark(), remark),
                     dailyLog.id());
-            return new Result(dailyLog.id(), request.flockId(), request.recordDate(), request.liveHenCount(),
-                    (int) deadCount, (int) cullCount, request.sickCount());
+            logId = dailyLog.id();
+        } else {
+            logId = jdbc.queryForObject("""
+                    INSERT INTO daily_health_logs
+                        (record_date, flock_id, live_hen_count, dead_count, cull_count,
+                         symptom_note, remark, created_by_user_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING health_log_id
+                    """, Long.class, request.recordDate(), request.flockId(), request.liveHenCount(),
+                    request.deadCount(), request.cullCount(), symptomNote, remark, actor.getUserId());
         }
-        Long id = jdbc.queryForObject("""
-                INSERT INTO daily_health_logs
-                    (record_date, flock_id, live_hen_count, dead_count, cull_count,
-                     symptom_note, remark, created_by_user_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING health_log_id
-                """, Long.class, request.recordDate(), request.flockId(), request.liveHenCount(),
-                request.deadCount(), request.cullCount(), symptomNote, remark, actor.getUserId());
-        return new Result(id, request.flockId(), request.recordDate(), request.liveHenCount(),
-                request.deadCount(), request.cullCount(), request.sickCount());
+        if (currentCount != flock.currentCount()) {
+            jdbc.update("""
+                    UPDATE flocks SET current_count = ?, updated_at = CURRENT_TIMESTAMP WHERE flock_id = ?
+                    """, currentCount, request.flockId());
+        }
+        return new Result(logId, request.flockId(), request.recordDate(), request.liveHenCount(),
+                (int) deadCount, (int) cullCount, request.sickCount(), currentCount);
+    }
+
+    int availableCount(int flockId, int initialCount, int currentCount) {
+        long recordedLosses = jdbc.queryForObject("""
+                SELECT COALESCE(SUM(dead_count::bigint) + SUM(cull_count::bigint), 0)
+                FROM daily_health_logs
+                WHERE flock_id = ? AND deleted_at IS NULL
+                """, Long.class, flockId);
+        return (int) Math.max(0, Math.min(currentCount, initialCount - recordedLosses));
     }
 
     private String appendNote(String existing, String event) {
