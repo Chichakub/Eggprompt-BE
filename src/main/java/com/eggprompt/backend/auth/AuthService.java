@@ -26,6 +26,7 @@ public class AuthService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordResetTokenGenerator passwordResetTokenGenerator;
     private final PasswordResetMailService passwordResetMailService;
+    private final EmailVerificationService emailVerification;
 
     @Value("${app.password-reset.expiration-minutes:15}")
     private long passwordResetExpirationMinutes;
@@ -83,7 +84,8 @@ public class AuthService {
         // Backend กำหนด Role เอง
         user.setUserRole("Farm Admin");
         user.setOnboardingRequired(true);
-        user.setActive(true);
+        user.setActive(false);
+        emailVerification.issue(user);
 
         // ยังไม่ได้ตั้งค่าฟาร์ม
         user.setFarmId(null);
@@ -138,7 +140,8 @@ public class AuthService {
         }
 
         if (!user.isActive()) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Account is inactive");
+            throw new ApiException(HttpStatus.FORBIDDEN, user.isEmailVerificationPending()
+                    ? "EMAIL_VERIFICATION_REQUIRED" : "Account is inactive");
         }
 
         user.setLastLoginAt(Instant.now());

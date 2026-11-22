@@ -1,5 +1,6 @@
 package com.eggprompt.backend.user;
 
+import com.eggprompt.backend.auth.EmailVerificationService;
 import com.eggprompt.backend.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -89,14 +90,19 @@ public class AdminUserService {
         try { users.saveAndFlush(user); }
         catch (DataIntegrityViolationException e) { throw new ApiException(HttpStatus.CONFLICT, "บันทึกไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้ซ้ำหรือข้อมูลฟาร์ม"); }
     }
+    private final EmailVerificationService emailVerification;
+
     public UserView create(String username, CreateUserRequest request) {
-        return create(username, request, false);
+        return create(username, request, false, null);
     }
-    public UserView createForFarm(String username, CreateUserRequest request) {
-        return create(username, request, "Farm Admin".equals(request.role()));
+    public UserView createForFarm(String username, CreateUserRequest request, String email) {
+        if ("Farm Admin".equals(request.role()) && email == null) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "กรุณากรอกอีเมลสำหรับบัญชี Farm Admin");
+        }
+        return create(username, request, true, email);
     }
 
-    private UserView create(String username, CreateUserRequest request, boolean mustChangePassword) {
+    private UserView create(String username, CreateUserRequest request, boolean mustChangePassword, String email) {
     User actor = actor(username);
         allowedRole(actor, request.role());
         String farmId = superAdmin(actor) ? request.farmId() : actor.getFarmId();
@@ -115,6 +121,15 @@ public class AdminUserService {
         user.setFarmId("Super Admin".equals(request.role()) ? null : farmId);
         user.setPasswordHash(encoder.encode(password)); user.setActive(true);
         user.setMustChangePassword(mustChangePassword);
+        if (email != null) {
+            String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+            if (users.existsByEmailNormalized(normalizedEmail)) {
+                throw new ApiException(HttpStatus.CONFLICT, "อีเมลนี้ถูกใช้งานแล้ว");
+            }
+            user.setEmail(normalizedEmail);
+            user.setActive(false);
+            emailVerification.issue(user);
+        }
         save(user);
         return UserView.from(user);
     }
@@ -129,7 +144,7 @@ public class AdminUserService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "บัญชีนี้ยังไม่ได้ผูกกับฟาร์ม จึงเปลี่ยนเป็น Role นี้ไม่ได้");
         if (!user.getUsername().equals(request.username()) && users.existsByUsername(request.username()))
             throw new ApiException(HttpStatus.CONFLICT, "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว");
-        user.setUsername(request.username()); user.setUserRole(request.role()); user.setActive(request.active());
+        user.setUsername(request.username()); user.setUserRole(request.role()); user.setActive(request.active() && !user.isEmailVerificationPending());
         save(user);
         return UserView.from(user);
     }

@@ -30,6 +30,7 @@ class AdminUserTests {
     @Import({SecurityConfig.class, JwtAuthenticationFilter.class, AdminUserController.class, AdminUserService.class, GlobalExceptionHandler.class})
     static class Config {
         @Bean UserRepository users() { return mock(UserRepository.class); }
+        @Bean EmailVerificationService emailVerification() { return mock(EmailVerificationService.class); }
         @Bean JwtService jwt() { return new JwtService("", 3600); }
         @Bean RevokedTokenStore revoked() { return new RevokedTokenStore(mock(RevokedTokenRepository.class)); }
     }

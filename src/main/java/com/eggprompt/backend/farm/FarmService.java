@@ -63,7 +63,10 @@ public class FarmService {
                     account.username(),
                     account.temporaryPassword(),
                     account.role(),
-                    farm.getFarmId()));
+                    farm.getFarmId()
+            ),
+                    account.email()
+            );
         }
 
         return farm.getFarmId();

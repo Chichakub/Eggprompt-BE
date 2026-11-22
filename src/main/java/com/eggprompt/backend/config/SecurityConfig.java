@@ -38,7 +38,8 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                         .requestMatchers("/v1/auth/login",
                                 "/v1/auth/register","/v1/auth/forgot-password","/v1/auth/reset-password").permitAll()
-                        .requestMatchers("/v1/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/v1/auth/verify-email",
+                                "/v1/auth/resend-verification").permitAll()
                         .requestMatchers("/v1/auth/me", "/v1/auth/logout").authenticated()
                         // ผู้ใช้ทุก Role แก้โปรไฟล์ตัวเองได้ (ต้องอยู่ก่อน /v1/users/**)
                         .requestMatchers("/v1/users/me").authenticated()

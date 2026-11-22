@@ -26,6 +26,16 @@ public class User {
     @Column(name = "username", nullable = false, unique = true)
     private String username;
 
+    @Column(name = "email_verification_hash", length = 64, unique = true)
+    private String emailVerificationHash;
+
+    @Column(name = "email_verification_expires_at")
+    private Instant emailVerificationExpiresAt;
+
+    public boolean isEmailVerificationPending() {
+        return emailVerificationHash != null;
+    }
+
     @Column(name = "email", length = 255)
     private String email;
 
