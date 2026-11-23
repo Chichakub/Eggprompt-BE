@@ -143,7 +143,8 @@ public class AuthService {
         if(user.isEmailVerificationPending())
             throw new ApiException(HttpStatus.FORBIDDEN,"EMAIL_VERIFICATION_REQUIRED");
         if (!user.isActive()) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Account is inactive");
+            throw new ApiException(HttpStatus.FORBIDDEN, user.isEmailVerificationPending()
+                    ? "EMAIL_VERIFICATION_REQUIRED" : "Account is inactive");
         }
 
         user.setLastLoginAt(Instant.now());

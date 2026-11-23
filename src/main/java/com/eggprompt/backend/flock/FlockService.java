@@ -24,7 +24,7 @@ public class FlockService {
     public record Breed(int breedId,String breedName) {}
     public record FlockView(int flockId,String flockCode,int houseId,String houseName,String farmId,
             int breedId,String breedName,LocalDate receivedDate,int initialAgeWeeks,long ageWeeks,
-            int initialCount,int currentCount,double mortalityPercent,String supplier,String healthCertificate,
+            int initialCount,int currentCount,double mortalityPercent,double survivalPercent,String supplier,String healthCertificate,
             BigDecimal pricePerBird,BigDecimal initialAverageWeightG,Boolean vaccinated,String status,
             Double henDayPercent,Double eggWeightG,Double feedGramsPerBird) {}
     private User actor(String username,boolean write) {
@@ -38,26 +38,40 @@ public class FlockService {
     private static final String SELECT = """
             SELECT f.*,h.house_name,h.farm_id,b.breed_name,
             (SELECT COALESCE(sum(dead_count),0) FROM daily_health_logs d WHERE d.flock_id=f.flock_id AND d.deleted_at IS NULL) AS total_dead,
+            (SELECT COALESCE(sum(cull_count),0) FROM daily_health_logs d WHERE d.flock_id=f.flock_id AND d.deleted_at IS NULL) AS total_culled,
             (SELECT SUM(e.total_egg_count)*100.0/NULLIF(MAX(d.live_hen_count),0) FROM daily_egg_logs e
               JOIN daily_health_logs d ON d.flock_id=e.flock_id AND d.record_date=e.record_date AND d.deleted_at IS NULL
               WHERE e.flock_id=f.flock_id AND e.deleted_at IS NULL GROUP BY e.record_date ORDER BY e.record_date DESC LIMIT 1) AS hen_day,
-            (SELECT feed.feed_weight_kg*1000.0/NULLIF(d.live_hen_count,0) FROM daily_feed_logs feed
-              JOIN daily_health_logs d ON d.flock_id=feed.flock_id AND d.record_date=feed.record_date AND d.deleted_at IS NULL
-              WHERE feed.flock_id=f.flock_id AND feed.deleted_at IS NULL ORDER BY feed.record_date DESC LIMIT 1) AS feed_per_bird
+                        (SELECT SUM(feed.feed_weight_kg) * 1000.0 / NULLIF(d.live_hen_count, 0)
+                         FROM daily_feed_logs feed
+                         JOIN daily_health_logs d
+                           ON d.flock_id = feed.flock_id
+                          AND d.record_date = feed.record_date
+                          AND d.deleted_at IS NULL
+                         WHERE feed.flock_id = f.flock_id
+                           AND feed.deleted_at IS NULL
+                         GROUP BY feed.record_date, d.live_hen_count
+                         ORDER BY feed.record_date DESC
+                         LIMIT 1) AS feed_per_bird
             FROM flocks f
             JOIN houses h ON h.house_id=f.house_id JOIN breeds b ON b.breed_id=f.breed_id
             WHERE f.deleted_at IS NULL AND h.deleted_at IS NULL
             """;
     private FlockView view(ResultSet r,int index) throws SQLException {
         LocalDate received=r.getDate("received_date").toLocalDate();
-        int initial=r.getInt("initial_count"),current=r.getInt("current_count");
+        int initial=r.getInt("initial_count");
+        long dead=r.getLong("total_dead"), culled=r.getLong("total_culled");
+        int current=(int) Math.max(0, Math.min(r.getInt("current_count"), initial - dead - culled));
         return new FlockView(r.getInt("flock_id"),r.getString("flock_code"),r.getInt("house_id"),r.getString("house_name"),r.getString("farm_id"),
                 r.getInt("breed_id"),r.getString("breed_name"),received,r.getInt("initial_age_weeks"),
                 r.getInt("initial_age_weeks")+Math.max(0,ChronoUnit.DAYS.between(received,LocalDate.now(ZoneId.of("Asia/Bangkok"))))/7,
-                initial,current,initial>0 ? r.getLong("total_dead")*100.0/initial:0,
+                initial,current,percentageOfIntake(dead,initial),percentageOfIntake(current,initial),
                 r.getString("supplier"),r.getString("health_certificate"),r.getBigDecimal("price_per_bird"),r.getBigDecimal("initial_average_weight_g"),
                 (Boolean)r.getObject("vaccinated"),r.getString("status"), r.getObject("hen_day")==null?null:r.getDouble("hen_day"),null,
                 r.getObject("feed_per_bird")==null?null:r.getDouble("feed_per_bird"));
+    }
+    private static double percentageOfIntake(long count, int initialCount) {
+        return initialCount > 0 ? count * 100.0 / initialCount : 0.0;
     }
     @Transactional(readOnly=true)
     public List<FlockView> list(String username,String selectedFarm) {
@@ -129,9 +143,11 @@ public class FlockService {
     public FlockView update(String username,int id,Request req) {
         User actor=actor(username,true);
         if("Farm Staff".equals(actor.getUserRole()))throw new ApiException(HttpStatus.FORBIDDEN,"ไม่มีสิทธิ์แก้ไขข้อมูลฝูงไก่");
-        FlockView previous=find(actor,id);
+        find(actor,id);
         validate(actor,req,id);
-        var removed=jdbc.queryForObject("SELECT COALESCE(sum(dead_count+cull_count),0) FROM daily_health_logs WHERE flock_id=? AND deleted_at IS NULL",Long.class,id);
+        jdbc.queryForList("SELECT flock_id FROM flocks WHERE flock_id=? AND deleted_at IS NULL FOR UPDATE",id);
+        FlockView previous=find(actor,id);
+        var removed=jdbc.queryForObject("SELECT COALESCE(sum(dead_count::bigint)+sum(cull_count::bigint),0) FROM daily_health_logs WHERE flock_id=? AND deleted_at IS NULL",Long.class,id);
         long losses=Math.max(Math.max(0,previous.initialCount()-previous.currentCount()), removed==null?0:removed);
         if(req.initialCount()<losses)throw new ApiException(HttpStatus.BAD_REQUEST,"จำนวนรับเข้าต้องไม่น้อยกว่าจำนวนตายและคัดทิ้งสะสม");
         if(!previous.receivedDate().equals(req.receivedDate()) || previous.houseId()!=req.houseId()) {
