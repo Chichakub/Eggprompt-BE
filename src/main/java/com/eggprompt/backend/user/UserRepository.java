@@ -15,6 +15,17 @@ public interface UserRepository extends JpaRepository<User, Integer>, org.spring
 
     Optional<User> findByUsernameAndDeletedAtIsNull(String username);
 
+    @Query("select u.userId from User u where u.emailVerificationHash = :hash and u.deletedAt is null")
+    Optional<Integer> findVerificationUserId(@Param("hash") String hash);
+
+    @Query("""
+        select u.userId from User u
+        where lower(trim(u.email)) = :email
+          and u.emailVerificationHash is not null and u.deletedAt is null
+        order by u.userId
+        """)
+    java.util.List<Integer> findPendingVerificationUserIds(@Param("email") String email);
+
     // ตรวจชื่อผู้ใช้ซ้ำ รวมบัญชีที่ถูกลบแบบ Soft Delete
     boolean existsByUsername(String username);
 

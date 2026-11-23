@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Email;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -28,6 +29,11 @@ public record CreateFarmRequest(
     public record AccountRequest(
             @NotBlank String role,
             @NotBlank @Pattern(regexp = "[A-Za-z0-9._-]{4,24}") String username,
+            @Email @Size(max = 255) String email,
             @NotBlank String temporaryPassword
-    ) {}
+    ) {
+        public AccountRequest {
+            email = email == null || email.isBlank() ? null : email.trim();
+        }
+    }
 }

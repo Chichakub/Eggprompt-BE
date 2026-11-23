@@ -26,6 +26,7 @@ public class AuthService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordResetTokenGenerator passwordResetTokenGenerator;
     private final PasswordResetMailService passwordResetMailService;
+    private final EmailVerificationService emailVerification;
 
     @Value("${app.password-reset.expiration-minutes:15}")
     private long passwordResetExpirationMinutes;
@@ -83,7 +84,8 @@ public class AuthService {
         // Backend กำหนด Role เอง
         user.setUserRole("Farm Admin");
         user.setOnboardingRequired(true);
-        user.setActive(true);
+        user.setActive(false);
+        emailVerification.issue(user);
 
         // ยังไม่ได้ตั้งค่าฟาร์ม
         user.setFarmId(null);
@@ -129,14 +131,17 @@ public class AuthService {
         return false;
     }
 
+    @Transactional
     public LoginResponse login(LoginRequest request) {
-        User user = userRepository.findByUsernameAndDeletedAtIsNull(request.username())
+        User user = userRepository.findByUsernameForUpdate(request.username())
                 .orElseThrow(AuthService::invalidCredentials);
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             throw invalidCredentials();
         }
 
+        if(user.isEmailVerificationPending())
+            throw new ApiException(HttpStatus.FORBIDDEN,"EMAIL_VERIFICATION_REQUIRED");
         if (!user.isActive()) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Account is inactive");
         }
@@ -180,6 +185,8 @@ public class AuthService {
                         "ไม่พบชื่อผู้ใช้นี้ในระบบ กรุณาตรวจสอบชื่อผู้ใช้อีกครั้ง"
                 ));
 
+        if(user.isEmailVerificationPending())
+            throw new ApiException(HttpStatus.FORBIDDEN,"EMAIL_VERIFICATION_REQUIRED");
         if (!user.isActive()) {
             throw new ApiException(
                     HttpStatus.FORBIDDEN,
@@ -302,6 +309,7 @@ public class AuthService {
         }
 
         user.setPasswordHash(passwordEncoder.encode(password));
+        user.setAuthVersion(user.getAuthVersion()+1);
         userRepository.saveAndFlush(user);
 
         passwordResetTokenRepository.invalidateUnusedTokensForUser(
@@ -332,6 +340,8 @@ public class AuthService {
                         "ไม่พบบัญชีผู้ใช้"
                 ));
 
+        if(user.isEmailVerificationPending())
+            throw new ApiException(HttpStatus.FORBIDDEN,"EMAIL_VERIFICATION_REQUIRED");
         if (!user.isActive()) {
             throw new ApiException(
                     HttpStatus.FORBIDDEN,
@@ -393,6 +403,7 @@ public class AuthService {
         }
 
         user.setPasswordHash(passwordEncoder.encode(password));
+        if(Boolean.TRUE.equals(user.getMustChangePassword()))user.setAuthVersion(user.getAuthVersion()+1);
         user.setMustChangePassword(false); // เพิ่มบรรทัดนี้
         userRepository.saveAndFlush(user);
 

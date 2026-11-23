@@ -43,6 +43,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 var user = users.findById(Integer.valueOf(claims.getSubject()))
                         .filter(u -> u.isActive() && u.getDeletedAt() == null && ROLES.contains(u.getUserRole()))
                         .orElseThrow(() -> new IllegalArgumentException("Unavailable user"));
+                Number version=claims.get("authVersion",Number.class);
+                if(user.getAuthVersion()!=(version==null?0:version.longValue()) || user.isEmailVerificationPending())
+                    throw new IllegalArgumentException("Outdated session");
                 boolean passwordChangeRequired = Boolean.TRUE.equals(user.getMustChangePassword());
                 boolean temporaryToken = Boolean.TRUE.equals(claims.get("mustChangePassword"));
 

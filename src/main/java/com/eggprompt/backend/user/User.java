@@ -7,6 +7,7 @@ import lombok.Setter;
 import java.time.Instant;
 
 @Entity
+@org.hibernate.annotations.DynamicUpdate
 @Table(name = "users")
 @Getter
 @Setter
@@ -25,6 +26,16 @@ public class User {
 
     @Column(name = "username", nullable = false, unique = true)
     private String username;
+
+    @Column(name = "email_verification_hash", length = 64, unique = true)
+    private String emailVerificationHash;
+
+    @Column(name = "email_verification_expires_at")
+    private Instant emailVerificationExpiresAt;
+
+    public boolean isEmailVerificationPending() {
+        return emailVerificationHash != null;
+    }
 
     @Column(name = "email", length = 255)
     private String email;
@@ -63,6 +74,9 @@ public class User {
     private Instant deletedAt;
 
     private Instant lastLoginAt;
+
+    @Column(name="auth_version",nullable=false,columnDefinition="bigint default 0")
+    private long authVersion;
 
     @PrePersist
     void onCreate() {
