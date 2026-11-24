@@ -53,6 +53,65 @@ class AdminUserTests {
     @AfterEach void close() { context.close(); }
     String token() { return "Bearer " + context.getBean(JwtService.class).generateToken(actor); }
     String body(String name,String role,boolean active) { return "{\"username\":\""+name+"\",\"role\":\""+role+"\",\"active\":"+active+"}"; }
+    @Test void creationRequiresFarmAdminEmailAndNormalizesOptionalStaffEmail() throws Exception {
+        String admin="{\"username\":\"farm.admin\",\"role\":\"Farm Admin\",\"password\":\"Strong123!\",\"farmId\":\"FARM-001\"}";
+        mvc.perform(post("/v1/admin/users").header("Authorization",token()).contentType("application/json").content(admin)).andExpect(status().isBadRequest());
+        String staff="{\"username\":\"email.staff\",\"role\":\"Farm Staff\",\"password\":\"Strong123!\",\"farmId\":\"FARM-001\",\"email\":\" Staff@Example.com \"}";
+        mvc.perform(post("/v1/admin/users").header("Authorization",token()).contentType("application/json").content(staff)).andExpect(status().isCreated())
+            .andExpect(jsonPath("$.email").value("staff@example.com")).andExpect(jsonPath("$.active").value(false)).andExpect(jsonPath("$.mustChangePassword").value(true));
+        verify(context.getBean(EmailVerificationService.class)).issue(argThat(u->"staff@example.com".equals(u.getEmail())));
+        when(users.existsByEmailNormalized("staff@example.com")).thenReturn(true);
+        mvc.perform(post("/v1/admin/users").header("Authorization",token()).contentType("application/json").content(staff)).andExpect(status().isConflict());
+    }
+    @Test void temporaryPasswordRevokesOldPasswordAndEveryOldToken() throws Exception {
+        actor.setUserRole("Farm Admin");actor.setFarmId("FARM-001");
+        var encoder=context.getBean(PasswordEncoder.class);target.setPasswordHash(encoder.encode("OldStrong123!"));
+        when(users.findById(2)).thenReturn(Optional.of(target));
+        String oldToken="Bearer "+context.getBean(JwtService.class).generateToken(target);
+        var response=mvc.perform(post("/v1/admin/users/2/temporary-password").header("Authorization",token()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String issued=new com.fasterxml.jackson.databind.ObjectMapper().readTree(response).get("temporaryPassword").asText();
+        assertTrue(encoder.matches(issued,target.getPasswordHash()));assertFalse(encoder.matches("OldStrong123!",target.getPasswordHash()));
+        assertEquals(1,target.getAuthVersion());assertTrue(target.getMustChangePassword());
+        mvc.perform(get("/v1/auth/me").header("Authorization",oldToken)).andExpect(status().isUnauthorized());
+        target.setMustChangePassword(false);
+        mvc.perform(get("/v1/auth/me").header("Authorization",oldToken)).andExpect(status().isUnauthorized());
+        // A second reissue also invalidates an earlier temporary token.
+        target.setMustChangePassword(true);String firstTemporary="Bearer "+context.getBean(JwtService.class).generateToken(target);
+        mvc.perform(post("/v1/admin/users/2/temporary-password").header("Authorization",token())).andExpect(status().isOk());
+        mvc.perform(post("/v1/auth/change-password").header("Authorization",firstTemporary)).andExpect(status().isUnauthorized());
+    }
+    @Test void reissueRejectsCrossFarmEmailAccountsAndOtherRoles() throws Exception {
+        actor.setUserRole("Farm Admin");actor.setFarmId("FARM-001");target.setFarmId("FARM-002");
+        mvc.perform(post("/v1/admin/users/2/temporary-password").header("Authorization",token())).andExpect(status().isForbidden());
+        target.setFarmId("FARM-001");target.setEmail("staff@example.com");
+        mvc.perform(post("/v1/admin/users/2/temporary-password").header("Authorization",token())).andExpect(status().isBadRequest());
+        target.setEmail(null);target.setUserRole("Farm Admin");
+        mvc.perform(post("/v1/admin/users/2/temporary-password").header("Authorization",token())).andExpect(status().isForbidden());
+        actor.setUserRole("Super Admin");
+        mvc.perform(post("/v1/admin/users/2/temporary-password").header("Authorization",token())).andExpect(status().isForbidden());
+    }
+    @Test void financeStaffWithoutEmailCanReceiveTemporaryPassword() throws Exception {
+        actor.setUserRole("Farm Admin");actor.setFarmId("FARM-001");target.setUserRole("Finance Staff");
+        mvc.perform(post("/v1/admin/users/2/temporary-password").header("Authorization",token())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.temporaryPassword").isString());
+        assertTrue(target.getMustChangePassword());
+    }
+    @Test void invalidEmailRejectedAndBlankEmailIsOptionalForStaff() throws Exception {
+        String payload="{\"username\":\"test.staff\",\"role\":\"Farm Staff\",\"password\":\"Strong123!\",\"farmId\":\"FARM-001\",\"email\":\"bad-email\"}";
+        mvc.perform(post("/v1/admin/users").header("Authorization",token()).contentType("application/json").content(payload)).andExpect(status().isBadRequest());
+        mvc.perform(post("/v1/admin/users").header("Authorization",token()).contentType("application/json").content(payload.replace("bad-email","   "))).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.active").value(true)).andExpect(jsonPath("$.mustChangePassword").value(true));
+    }
+    @Test void addFarmAndUserManagementShareVerificationRules() {
+        var service=context.getBean(AdminUserService.class);
+        service.createForFarm("admin",new AdminUserController.CreateUserRequest("farm.admin","Strong123!","Farm Admin","FARM-001")," Admin@Example.com ");
+        verify(context.getBean(EmailVerificationService.class)).issue(argThat(u->"admin@example.com".equals(u.getEmail()) && Boolean.TRUE.equals(u.getMustChangePassword()) && !u.isActive()));
+    }
+    @Test void pendingVerificationCannotBeBypassedWithStatusToggle() throws Exception {
+        target.setEmailVerificationHash("pending");
+        mvc.perform(put("/v1/admin/users/2").header("Authorization",token()).contentType("application/json").content(body("staff.one","Farm Staff",true))).andExpect(status().isBadRequest());
+    }
     @Test void anonymousAndFinanceDenied() throws Exception {
         mvc.perform(get("/v1/admin/users")).andExpect(status().isUnauthorized());
         actor.setUserRole("Finance Staff");
@@ -70,6 +129,8 @@ class AdminUserTests {
         mvc.perform(post("/v1/admin/users").header("Authorization",token()).contentType("application/json").content(payload)).andExpect(status().isCreated());
         var capture=org.mockito.ArgumentCaptor.forClass(User.class); verify(users).saveAndFlush(capture.capture());
         assertTrue(context.getBean(PasswordEncoder.class).matches("Strong123!",capture.getValue().getPasswordHash()));
+        assertTrue(capture.getValue().getMustChangePassword());
+        assertTrue(capture.getValue().isActive());
         when(users.existsByUsername("new.staff")).thenReturn(true);
         mvc.perform(post("/v1/admin/users").header("Authorization",token()).contentType("application/json").content(payload)).andExpect(status().isConflict());
     }

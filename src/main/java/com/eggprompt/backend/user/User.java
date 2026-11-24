@@ -7,6 +7,7 @@ import lombok.Setter;
 import java.time.Instant;
 
 @Entity
+@org.hibernate.annotations.DynamicUpdate
 @Table(name = "users")
 @Getter
 @Setter
@@ -73,6 +74,9 @@ public class User {
     private Instant deletedAt;
 
     private Instant lastLoginAt;
+
+    @Column(name="auth_version",nullable=false,columnDefinition="bigint default 0")
+    private long authVersion;
 
     @PrePersist
     void onCreate() {

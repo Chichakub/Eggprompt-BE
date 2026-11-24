@@ -31,6 +31,7 @@ public class JwtService {
         return Jwts.builder()
                 .id(java.util.UUID.randomUUID().toString())
                 .subject(String.valueOf(user.getUserId()))
+                .claim("authVersion",user.getAuthVersion())
                 .claim("username", user.getUsername())
                 .claim("role", user.getUserRole())
                 .claim("farmId", user.getFarmId())

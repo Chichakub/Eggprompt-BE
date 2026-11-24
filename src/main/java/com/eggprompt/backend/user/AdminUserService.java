@@ -88,22 +88,25 @@ public class AdminUserService {
     }
     private void save(User user) {
         try { users.saveAndFlush(user); }
-        catch (DataIntegrityViolationException e) { throw new ApiException(HttpStatus.CONFLICT, "บันทึกไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้ซ้ำหรือข้อมูลฟาร์ม"); }
+        catch (DataIntegrityViolationException e) { throw new ApiException(HttpStatus.CONFLICT, "บันทึกไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้ อีเมลซ้ำ หรือข้อมูลฟาร์ม"); }
     }
     private final EmailVerificationService emailVerification;
 
     public UserView create(String username, CreateUserRequest request) {
-        return create(username, request, false, null);
+        return create(username, request, true, request.email());
     }
     public UserView createForFarm(String username, CreateUserRequest request, String email) {
-        if ("Farm Admin".equals(request.role()) && email == null) {
+        if ("Farm Admin".equals(request.role()) && (email == null || email.isBlank())) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "กรุณากรอกอีเมลสำหรับบัญชี Farm Admin");
         }
         return create(username, request, true, email);
     }
 
     private UserView create(String username, CreateUserRequest request, boolean mustChangePassword, String email) {
-    User actor = actor(username);
+        email=email==null||email.isBlank()?null:email.trim().toLowerCase(Locale.ROOT);
+        if("Farm Admin".equals(request.role()) && email==null)
+            throw new ApiException(HttpStatus.BAD_REQUEST,"กรุณากรอกอีเมลสำหรับบัญชี Farm Admin");
+        User actor = actor(username);
         allowedRole(actor, request.role());
         String farmId = superAdmin(actor) ? request.farmId() : actor.getFarmId();
         if (farmId != null) farmId = farmId.trim();
@@ -133,6 +136,19 @@ public class AdminUserService {
         save(user);
         return UserView.from(user);
     }
+    public TemporaryPassword reissueTemporaryPassword(String username,Integer id,String farmScope) {
+        User actor=actor(username);
+        if(!"Farm Admin".equals(actor.getUserRole()) || actor.getFarmId()==null)
+            throw new ApiException(HttpStatus.FORBIDDEN,"เฉพาะ Farm Admin เท่านั้นที่ออกรหัสชั่วคราวให้พนักงานได้");
+        User user=target(actor,id,farmScope);
+        if(!user.isActive() || (user.getEmail()!=null && !user.getEmail().isBlank()))
+            throw new ApiException(HttpStatus.BAD_REQUEST,"ออกรหัสชั่วคราวได้เฉพาะพนักงานที่ใช้งานอยู่และไม่มีอีเมล");
+        byte[] random=new byte[18];new java.security.SecureRandom().nextBytes(random);
+        String password="Ep!9"+Base64.getUrlEncoder().withoutPadding().encodeToString(random);
+        user.setPasswordHash(encoder.encode(password));user.setMustChangePassword(true);
+        user.setAuthVersion(user.getAuthVersion()+1);save(user);
+        return new TemporaryPassword(user.getUsername(),password);
+    }
     public UserView update(String username, Integer id, UpdateUserRequest request) {
         return update(username, id, request, null);
     }
@@ -144,7 +160,11 @@ public class AdminUserService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "บัญชีนี้ยังไม่ได้ผูกกับฟาร์ม จึงเปลี่ยนเป็น Role นี้ไม่ได้");
         if (!user.getUsername().equals(request.username()) && users.existsByUsername(request.username()))
             throw new ApiException(HttpStatus.CONFLICT, "ชื่อผู้ใช้นี้ถูกใช้งานแล้ว");
-        user.setUsername(request.username()); user.setUserRole(request.role()); user.setActive(request.active() && !user.isEmailVerificationPending());
+        if("Farm Admin".equals(request.role()) && !"Farm Admin".equals(user.getUserRole()) && (user.getEmail()==null || user.getEmail().isBlank()))
+            throw new ApiException(HttpStatus.BAD_REQUEST,"บัญชี Farm Admin ต้องมีอีเมล");
+        if(user.isEmailVerificationPending() && request.active())
+            throw new ApiException(HttpStatus.BAD_REQUEST,"บัญชีนี้ต้องยืนยันอีเมลก่อนเปิดใช้งาน");
+        user.setUsername(request.username()); user.setUserRole(request.role()); user.setActive(request.active());
         save(user);
         return UserView.from(user);
     }
