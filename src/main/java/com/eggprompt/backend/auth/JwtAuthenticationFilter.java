@@ -66,7 +66,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         return;
                     }
                 }
-                var farmHeaders = request.getHeaders("farm_id");
+                var farmHeaders = request.getHeaders("X-Farm-Id");
                 if (farmHeaders.hasMoreElements()) {
                     String farmId = farmHeaders.nextElement().trim();
                     if (farmId.isEmpty() || farmId.length() > 20 || farmId.contains(",")

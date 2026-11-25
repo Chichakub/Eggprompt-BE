@@ -1,0 +1,718 @@
+{
+  "info": {
+    "name": "EggPrompt Release 1 - Excel Email Checkpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Aligned to the supplied 41 Release 1 manual cases. UI criteria require browser testing. Source workbook unchanged. API results do not certify full manual cases. See alignment.html and README. Keep X-Farm-Id checks; do not change expected statuses to mask proxy issues."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "superUsername",
+      "value": "superadmin",
+      "type": "string"
+    },
+    {
+      "key": "superPassword",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminUsername",
+      "value": "pm.admin.a",
+      "type": "string"
+    },
+    {
+      "key": "staffUsername",
+      "value": "pm.staff.a",
+      "type": "string"
+    },
+    {
+      "key": "financeUsername",
+      "value": "pm.finance.a",
+      "type": "string"
+    },
+    {
+      "key": "otherAdminUsername",
+      "value": "pm.admin.b",
+      "type": "string"
+    },
+    {
+      "key": "testPassword",
+      "value": "Postman@123",
+      "type": "string"
+    },
+    {
+      "key": "changedPassword",
+      "value": "Changed@123",
+      "type": "string"
+    },
+    {
+      "key": "farmA",
+      "value": "PM-EXAM-A",
+      "type": "string"
+    },
+    {
+      "key": "farmB",
+      "value": "PM-EXAM-B",
+      "type": "string"
+    },
+    {
+      "key": "invalidToken",
+      "value": "not-a-jwt",
+      "type": "string"
+    },
+    {
+      "key": "runEmailTests",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "verificationEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "verificationToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resetToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "staffEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "staffVerificationToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "addFarmEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resetUsername",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "resetCurrentPassword",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const c = pm.collectionVariables;",
+          "if (pm.info.requestName.startsWith(\"R1-SETUP-001\")) {",
+          " c.set(\"runId\", String(Date.now()).slice(-9)); c.set(\"run_results\", \"[]\");",
+          " [\"superToken\",\"adminToken\",\"staffToken\",\"financeToken\",\"otherToken\",\"houseId\",\"emptyHouseId\",\"flockId\",\"eggId\",\"newUserId\",\"newFinanceId\"].forEach(k=>c.unset(k));",
+          "}",
+          "if (!c.get(\"runId\")) c.set(\"runId\",String(Date.now()).slice(-9));",
+          "const parts = Object.fromEntries(new Intl.DateTimeFormat(\"en-CA\",{timeZone:\"Asia/Bangkok\",year:\"numeric\",month:\"2-digit\",day:\"2-digit\"}).formatToParts(new Date()).map(p=>[p.type,p.value]));",
+          "const day = `${parts.year}-${parts.month}-${parts.day}`;",
+          "c.set(\"today\",day);",
+          "c.set(\"receivedDate\",new Date(Date.parse(day+\"T00:00:00Z\")-7*86400000).toISOString().slice(0,10));",
+          "",
+          "const received = c.get(\"receivedDate\");",
+          "c.set(\"beforeReceivedDate\",new Date(Date.parse(received+\"T00:00:00Z\")-86400000).toISOString().slice(0,10));",
+          "c.set(\"tomorrow\",new Date(Date.parse(c.get(\"today\")+\"T00:00:00Z\")+86400000).toISOString().slice(0,10));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "00 Mail prerequisites",
+      "item": [
+        {
+          "name": "R1-MAIL-SETUP-001 | Login super",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = 200;",
+                  "let passed = true;",
+                  "function check(name, fn) { pm.test(name, () => { try { fn(); } catch(e) { passed=false; throw e; } }); }",
+                  "check(\"R1-MAIL-SETUP-001: HTTP \" + expected, () => pm.expect(pm.response.code).to.eql(expected));",
+                  "let data; try { data = pm.response.json(); } catch (_) {}",
+                  "check(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));",
+                  "check(\"Response contract\", () => { pm.expect(data.accessToken).to.be.a(\"string\").and.not.empty; pm.expect(data.user.role).to.be.a(\"string\"); });",
+                  "if (pm.response.code === expected) pm.collectionVariables.set(\"superToken\", data.accessToken);",
+                  "const report = JSON.parse(pm.collectionVariables.get(\"run_results\") || \"[]\"); report.push({id:\"R1-MAIL-SETUP-001\",name:\"Login super\",expected,actual:pm.response.code,result:passed?\"PASS\":\"FAIL\"}); pm.collectionVariables.set(\"run_results\",JSON.stringify(report));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/login",
+            "description": "Login super",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{superUsername}}\",\n  \"password\": \"{{superPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "PBI-02 Change / Reset Password",
+      "item": [
+        {
+          "name": "R1-02-03.01 | Login isolated email QA account",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get(\"runEmailTests\") !== \"true\") { console.warn(\"SKIPPED: opt in and follow inbox checkpoints\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = 200;",
+                  "let passed = true;",
+                  "function check(name, fn) { pm.test(name, () => { try { fn(); } catch(e) { passed=false; throw e; } }); }",
+                  "check(\"R1-02-03.01: HTTP \" + expected, () => pm.expect(pm.response.code).to.eql(expected));",
+                  "let data; try { data = pm.response.json(); } catch (_) {}",
+                  "check(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));",
+                  "if (pm.response.code === expected) pm.collectionVariables.set(\"resetOldToken\", data.accessToken);",
+                  "const report = JSON.parse(pm.collectionVariables.get(\"run_results\") || \"[]\"); report.push({id:\"R1-02-03.01\",name:\"Login isolated email QA account\",expected,actual:pm.response.code,result:passed?\"PASS\":\"FAIL\"}); pm.collectionVariables.set(\"run_results\",JSON.stringify(report));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/login",
+            "description": "Excel R1-02-03: รีเซ็ตรหัสผ่านทางอีเมล\nOriginal expected: ได้รับลิงก์ ตั้งรหัสใหม่ได้ และเข้าสู่ระบบด้วยรหัสใหม่ได้\nหยุดหลังขอ reset เพื่อเปิด inbox QA และกรอก resetToken ก่อน step 3; ตรวจลิงก์และข้อความใน Browser เพิ่ม",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{resetUsername}}\",\n  \"password\": \"{{resetCurrentPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "R1-02-03.02 | Request reset email by username",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get(\"runEmailTests\") !== \"true\") { console.warn(\"SKIPPED: opt in and follow inbox checkpoints\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = 200;",
+                  "let passed = true;",
+                  "function check(name, fn) { pm.test(name, () => { try { fn(); } catch(e) { passed=false; throw e; } }); }",
+                  "check(\"R1-02-03.02: HTTP \" + expected, () => pm.expect(pm.response.code).to.eql(expected));",
+                  "let data; try { data = pm.response.json(); } catch (_) {}",
+                  "check(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));",
+                  "const report = JSON.parse(pm.collectionVariables.get(\"run_results\") || \"[]\"); report.push({id:\"R1-02-03.02\",name:\"Request reset email by username\",expected,actual:pm.response.code,result:passed?\"PASS\":\"FAIL\"}); pm.collectionVariables.set(\"run_results\",JSON.stringify(report));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/forgot-password",
+            "description": "Excel R1-02-03: รีเซ็ตรหัสผ่านทางอีเมล\nOriginal expected: ได้รับลิงก์ ตั้งรหัสใหม่ได้ และเข้าสู่ระบบด้วยรหัสใหม่ได้\nหยุดหลังขอ reset เพื่อเปิด inbox QA และกรอก resetToken ก่อน step 3; ตรวจลิงก์และข้อความใน Browser เพิ่ม",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{resetUsername}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "R1-02-03.03 | Reset via actual inbox token",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get(\"runEmailTests\") !== \"true\") { console.warn(\"SKIPPED: opt in and follow inbox checkpoints\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = 200;",
+                  "let passed = true;",
+                  "function check(name, fn) { pm.test(name, () => { try { fn(); } catch(e) { passed=false; throw e; } }); }",
+                  "check(\"R1-02-03.03: HTTP \" + expected, () => pm.expect(pm.response.code).to.eql(expected));",
+                  "let data; try { data = pm.response.json(); } catch (_) {}",
+                  "check(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));",
+                  "const report = JSON.parse(pm.collectionVariables.get(\"run_results\") || \"[]\"); report.push({id:\"R1-02-03.03\",name:\"Reset via actual inbox token\",expected,actual:pm.response.code,result:passed?\"PASS\":\"FAIL\"}); pm.collectionVariables.set(\"run_results\",JSON.stringify(report));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/reset-password",
+            "description": "Excel R1-02-03: รีเซ็ตรหัสผ่านทางอีเมล\nOriginal expected: ได้รับลิงก์ ตั้งรหัสใหม่ได้ และเข้าสู่ระบบด้วยรหัสใหม่ได้\nหยุดหลังขอ reset เพื่อเปิด inbox QA และกรอก resetToken ก่อน step 3; ตรวจลิงก์และข้อความใน Browser เพิ่ม",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"password\": \"{{changedPassword}}\",\n  \"confirmPassword\": \"{{changedPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "R1-02-03.04 | Login with reset password",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get(\"runEmailTests\") !== \"true\") { console.warn(\"SKIPPED: opt in and follow inbox checkpoints\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = 200;",
+                  "let passed = true;",
+                  "function check(name, fn) { pm.test(name, () => { try { fn(); } catch(e) { passed=false; throw e; } }); }",
+                  "check(\"R1-02-03.04: HTTP \" + expected, () => pm.expect(pm.response.code).to.eql(expected));",
+                  "let data; try { data = pm.response.json(); } catch (_) {}",
+                  "check(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));",
+                  "const report = JSON.parse(pm.collectionVariables.get(\"run_results\") || \"[]\"); report.push({id:\"R1-02-03.04\",name:\"Login with reset password\",expected,actual:pm.response.code,result:passed?\"PASS\":\"FAIL\"}); pm.collectionVariables.set(\"run_results\",JSON.stringify(report));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/login",
+            "description": "Excel R1-02-03: รีเซ็ตรหัสผ่านทางอีเมล\nOriginal expected: ได้รับลิงก์ ตั้งรหัสใหม่ได้ และเข้าสู่ระบบด้วยรหัสใหม่ได้\nหยุดหลังขอ reset เพื่อเปิด inbox QA และกรอก resetToken ก่อน step 3; ตรวจลิงก์และข้อความใน Browser เพิ่ม",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{resetUsername}}\",\n  \"password\": \"{{changedPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "R1-02-04.01 | Reject used reset link",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get(\"runEmailTests\") !== \"true\") { console.warn(\"SKIPPED: opt in and follow inbox checkpoints\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = 400;",
+                  "let passed = true;",
+                  "function check(name, fn) { pm.test(name, () => { try { fn(); } catch(e) { passed=false; throw e; } }); }",
+                  "check(\"R1-02-04.01: HTTP \" + expected, () => pm.expect(pm.response.code).to.eql(expected));",
+                  "let data; try { data = pm.response.json(); } catch (_) {}",
+                  "check(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));",
+                  "if (data && data.message) check(\"Readable error\", () => pm.expect(data.message).to.be.a(\"string\").and.not.empty);",
+                  "const report = JSON.parse(pm.collectionVariables.get(\"run_results\") || \"[]\"); report.push({id:\"R1-02-04.01\",name:\"Reject used reset link\",expected,actual:pm.response.code,result:passed?\"PASS\":\"FAIL\"}); pm.collectionVariables.set(\"run_results\",JSON.stringify(report));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/reset-password",
+            "description": "Excel R1-02-04: เปิดลิงก์รีเซ็ตที่ใช้แล้ว\nOriginal expected: ระบบปฏิเสธลิงก์ที่ใช้แล้ว และรหัสผ่านล่าสุดยังใช้ได้\nหยุดหลังขอ reset เพื่อเปิด inbox QA และกรอก resetToken ก่อน step 3; ตรวจลิงก์และข้อความใน Browser เพิ่ม",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"password\": \"Another@123\",\n  \"confirmPassword\": \"Another@123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "R1-02-04.02 | Latest password remains usable",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get(\"runEmailTests\") !== \"true\") { console.warn(\"SKIPPED: opt in and follow inbox checkpoints\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = 200;",
+                  "let passed = true;",
+                  "function check(name, fn) { pm.test(name, () => { try { fn(); } catch(e) { passed=false; throw e; } }); }",
+                  "check(\"R1-02-04.02: HTTP \" + expected, () => pm.expect(pm.response.code).to.eql(expected));",
+                  "let data; try { data = pm.response.json(); } catch (_) {}",
+                  "check(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));",
+                  "const report = JSON.parse(pm.collectionVariables.get(\"run_results\") || \"[]\"); report.push({id:\"R1-02-04.02\",name:\"Latest password remains usable\",expected,actual:pm.response.code,result:passed?\"PASS\":\"FAIL\"}); pm.collectionVariables.set(\"run_results\",JSON.stringify(report));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/auth/login",
+            "description": "Excel R1-02-04: เปิดลิงก์รีเซ็ตที่ใช้แล้ว\nOriginal expected: ระบบปฏิเสธลิงก์ที่ใช้แล้ว และรหัสผ่านล่าสุดยังใช้ได้\nหยุดหลังขอ reset เพื่อเปิด inbox QA และกรอก resetToken ก่อน step 3; ตรวจลิงก์และข้อความใน Browser เพิ่ม",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{resetUsername}}\",\n  \"password\": \"{{changedPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "PBI-05 Register New Farm",
+      "item": [
+        {
+          "name": "R1-05-01.01 | Create farm with new Farm Admin",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get(\"runEmailTests\") !== \"true\") { console.warn(\"SKIPPED: opt in and follow inbox checkpoints\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = 201;",
+                  "let passed = true;",
+                  "function check(name, fn) { pm.test(name, () => { try { fn(); } catch(e) { passed=false; throw e; } }); }",
+                  "check(\"R1-05-01.01: HTTP \" + expected, () => pm.expect(pm.response.code).to.eql(expected));",
+                  "let data; try { data = pm.response.json(); } catch (_) {}",
+                  "check(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));",
+                  "if (pm.response.code === expected) pm.collectionVariables.set(\"createdMailFarmId\", data.farmId);",
+                  "const report = JSON.parse(pm.collectionVariables.get(\"run_results\") || \"[]\"); report.push({id:\"R1-05-01.01\",name:\"Create farm with new Farm Admin\",expected,actual:pm.response.code,result:passed?\"PASS\":\"FAIL\"}); pm.collectionVariables.set(\"run_results\",JSON.stringify(report));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/farms",
+            "description": "Excel R1-05-01: ลงทะเบียนฟาร์มพร้อม Farm Admin\nOriginal expected: สร้างฟาร์มพร้อมรหัสใหม่และค้นพบจากหน้ารวม บัญชี Farm Admin ผูกกับฟาร์มที่สร้าง\n",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"farmName\": \"QA Mail Farm {{runId}}\",\n  \"address\": \"Test address Bangkok\",\n  \"farmRegistrationNumber\": \"PM-REG-A\",\n  \"taxId\": \"0105565012345\",\n  \"contactPhone\": \"0812345678\",\n  \"operationStartDate\": \"2024-01-01\",\n  \"ownerName\": \"Postman Owner\",\n  \"accounts\": [\n    {\n      \"role\": \"Farm Admin\",\n      \"username\": \"qa_owner_{{runId}}\",\n      \"email\": \"{{addFarmEmail}}\",\n      \"temporaryPassword\": \"{{testPassword}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "R1-05-01.02 | Created farm searchable by generated ID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get(\"runEmailTests\") !== \"true\") { console.warn(\"SKIPPED: opt in and follow inbox checkpoints\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = 200;",
+                  "let passed = true;",
+                  "function check(name, fn) { pm.test(name, () => { try { fn(); } catch(e) { passed=false; throw e; } }); }",
+                  "check(\"R1-05-01.02: HTTP \" + expected, () => pm.expect(pm.response.code).to.eql(expected));",
+                  "let data; try { data = pm.response.json(); } catch (_) {}",
+                  "check(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));",
+                  "check(\"Response contract\", () => { pm.expect(data.content.length).to.eql(1); pm.expect(data.content[0].farmId).to.eql(pm.variables.get(\"createdMailFarmId\")); });",
+                  "const report = JSON.parse(pm.collectionVariables.get(\"run_results\") || \"[]\"); report.push({id:\"R1-05-01.02\",name:\"Created farm searchable by generated ID\",expected,actual:pm.response.code,result:passed?\"PASS\":\"FAIL\"}); pm.collectionVariables.set(\"run_results\",JSON.stringify(report));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/admin/farms?search={{createdMailFarmId}}",
+            "description": "Excel R1-05-01: ลงทะเบียนฟาร์มพร้อม Farm Admin\nOriginal expected: สร้างฟาร์มพร้อมรหัสใหม่และค้นพบจากหน้ารวม บัญชี Farm Admin ผูกกับฟาร์มที่สร้าง\n",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "R1-05-01.03 | Owner belongs to new farm",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get(\"runEmailTests\") !== \"true\") { console.warn(\"SKIPPED: opt in and follow inbox checkpoints\"); pm.execution.skipRequest(); }"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const expected = 200;",
+                  "let passed = true;",
+                  "function check(name, fn) { pm.test(name, () => { try { fn(); } catch(e) { passed=false; throw e; } }); }",
+                  "check(\"R1-05-01.03: HTTP \" + expected, () => pm.expect(pm.response.code).to.eql(expected));",
+                  "let data; try { data = pm.response.json(); } catch (_) {}",
+                  "check(\"No server error\", () => pm.expect(pm.response.code).to.be.below(500));",
+                  "check(\"Response contract\", () => { pm.expect(data.content.length).to.eql(1); pm.expect(data.content[0].farmId).to.eql(pm.variables.get(\"createdMailFarmId\")); pm.expect(data.content[0].emailVerificationPending).to.eql(true); });",
+                  "const report = JSON.parse(pm.collectionVariables.get(\"run_results\") || \"[]\"); report.push({id:\"R1-05-01.03\",name:\"Owner belongs to new farm\",expected,actual:pm.response.code,result:passed?\"PASS\":\"FAIL\"}); pm.collectionVariables.set(\"run_results\",JSON.stringify(report));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/admin/users?search=qa_owner_{{runId}}",
+            "description": "Excel R1-05-01: ลงทะเบียนฟาร์มพร้อม Farm Admin\nOriginal expected: สร้างฟาร์มพร้อมรหัสใหม่และค้นพบจากหน้ารวม บัญชี Farm Admin ผูกกับฟาร์มที่สร้าง\nใช้ addFarmEmail QA จริง บัญชีใหม่ยังต้องยืนยันอีเมลและเปลี่ยนรหัสครั้งแรก",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
