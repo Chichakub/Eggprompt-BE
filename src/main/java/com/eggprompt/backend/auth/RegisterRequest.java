@@ -5,11 +5,12 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 
 public record RegisterRequest(
 
         @NotBlank(message = "กรุณากรอกชื่อผู้ใช้")
-        @Size(max = 100, message = "ชื่อผู้ใช้ต้องไม่เกิน 100 ตัวอักษร")
+        @Pattern(regexp="[A-Za-z0-9._-]{4,24}", message="ชื่อผู้ใช้ต้องยาว 4–24 ตัว และใช้ตัวอักษรอังกฤษ ตัวเลข จุด ขีดกลาง หรือขีดล่าง")
         String username,
 
         @NotBlank(message = "กรุณากรอกรหัสผ่าน")
