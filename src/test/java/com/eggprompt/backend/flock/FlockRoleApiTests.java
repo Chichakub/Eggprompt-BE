@@ -42,10 +42,30 @@ class FlockRoleApiTests {
         mvc.perform(delete("/v1/flocks/7").header("Authorization",token())).andExpect(status().isForbidden());verify(service,never()).delete(anyString(),anyInt());
     }
     @Test void scopedCreatePassesAuthenticatedFarmToService() throws Exception {
-        mvc.perform(post("/v1/flocks").header("Authorization",token()).header("farm_id","F1")
+        mvc.perform(post("/v1/flocks").header("Authorization",token()).header("X-Farm-Id","F1")
                 .contentType("application/json").content(payload())).andExpect(status().isCreated());
         verify(service).create(eq("staff"),any(),eq("F1"));
         verify(service,never()).create(anyString(),any());
+    }
+    @Test void superAdminScopeSwitchesOnEveryRequest() throws Exception {
+        actor.setUserRole("Super Admin");
+        for (String farm : new String[]{"F1", "F2", "F1"}) {
+            mvc.perform(post("/v1/flocks").header("Authorization",token()).header("X-Farm-Id",farm)
+                    .contentType("application/json").content(payload())).andExpect(status().isCreated());
+        }
+        verify(service,times(2)).create(eq("staff"),any(),eq("F1"));
+        verify(service).create(eq("staff"),any(),eq("F2"));
+    }
+    @Test void rejectsSpoofedAndMalformedFarmHeaders() throws Exception {
+        mvc.perform(get("/v1/flocks").header("Authorization",token()).header("X-Farm-Id","F2"))
+                .andExpect(status().isForbidden());
+        for (String farm : new String[]{" ", "F1,F2", "123456789012345678901"}) {
+            mvc.perform(get("/v1/flocks").header("Authorization",token()).header("X-Farm-Id",farm))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(get("/v1/flocks").header("Authorization",token()).header("X-Farm-Id","F1","F2"))
+                .andExpect(status().isBadRequest());
+        verifyNoInteractions(service);
     }
     @Test void financeCannotCreateAndAdminMayStillDelete() throws Exception {
         actor.setUserRole("Finance Staff");
