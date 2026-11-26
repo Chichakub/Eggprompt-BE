@@ -213,7 +213,7 @@ for r in cases:
  mailonly=id in ['R1-02-03','R1-02-04','R1-05-01']
  maprows.append({'Test ID':id,'PBI':r['B'],'Scenario':r['C'],'Original Expected Results':r['J'],'Postman requests':ids,'Execution':'Manual email checkpoints' if mailonly else 'API portion + Browser checks','Manual checks':notes.get(id,'ตรวจ UI/ข้อความ/การรีเฟรชตาม Expected Results ใน Excel เพิ่ม'),'Result':'NOT RUN'})
 (ROOT/'alignment.json').write_text(json.dumps(maprows,ensure_ascii=False,indent=2)+'\n')
-cols=['Test ID','PBI','Scenario','Original Expected Results','Postman requests','Execution','Manual checks','Result']
-table=''.join('<tr>'+''.join('<td>'+html.escape('\n'.join(r[k]) if isinstance(r[k],list) else r[k])+'</td>' for k in cols)+'</tr>' for r in maprows)
-(ROOT/'alignment.html').write_text('<!doctype html><meta charset="utf-8"><title>Release 1 Excel to Postman mapping</title><style>body{font:14px Arial;margin:24px;color:#293823}table{border-collapse:collapse;width:100%}th{background:#445c33;color:white}td,th{padding:12px;border:1px solid #ddd;vertical-align:top;white-space:pre-wrap}tr:nth-child(even){background:#faf8f1}</style><h1>Release 1 — Excel / Postman Alignment</h1><p>41 manual cases mapped. Original workbook unchanged. API checks alone do not certify UI criteria. This collection has not been executed.</p><table><tr>'+''.join('<th>'+c+'</th>' for c in cols)+'</tr>'+table+'</table>')
+# Render the English request/response evidence layout after rebuilding collections.
+import runpy
+runpy.run_path(str(ROOT / 'render_evidence.py'), run_name='__main__')
 print('Aligned workbook cases:',len(maprows),'Main requests:',sum(map(len,main.values())),'Manual-email requests:',sum(map(len,mail.values())))
