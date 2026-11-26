@@ -1,8 +1,9 @@
 {
   "info": {
-    "name": "EggPrompt Release 1 v2 - RUN ALL",
+    "name": "EggPrompt Release 1 - RECOVERED RUN ALL",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Excel-aligned API tests. Select EggPrompt SIT and run all folders in the supplied order. Automatically recovers only the dedicated pm.r1.password account if a previous run left Changed@123. Does not change expected farm isolation assertions. UI checks still required. Not live-tested by generator."
+    "description": "Excel-aligned API tests. Select EggPrompt SIT and run all folders in the supplied order. Automatically recovers only the dedicated pm.r1.password account if a previous run left Changed@123. Does not change expected farm isolation assertions. UI checks still required. Not live-tested by generator.",
+    "_postman_id": "9a5579b7-8ea6-4704-a8de-5c3e0c13d51c"
   },
   "variable": [
     {
